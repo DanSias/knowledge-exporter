@@ -10,6 +10,7 @@ import { isPublished, isEnglish } from './filters';
 import { FreshdeskArticle } from './types';
 import { slugify, makeUniqueSlug } from '../utils/slugify';
 import { htmlToMarkdown } from '../utils/htmlToMarkdown';
+import { ensureTitleHeading } from '../utils/ensureTitleHeading';
 import { writeFileIdempotent } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
 import {
@@ -149,8 +150,11 @@ export class FreshdeskExporter implements ExporterProvider {
               // Convert HTML to Markdown
               const markdown = htmlToMarkdown(htmlBody);
 
+              // Ensure markdown starts with H1 title (unless already present)
+              const markdownWithTitle = ensureTitleHeading(markdown, article.title);
+
               // If body is empty, create minimal file with title
-              const finalMarkdown = markdown.trim() || `# ${article.title}\n\n*Note: This article has no content.*`;
+              const finalMarkdown = markdownWithTitle.trim() || `# ${article.title}\n\n*Note: This article has no content.*`;
 
               if (!markdown.trim()) {
                 report.logs.push(`    Warning: Article "${article.title}" (ID: ${article.id}) has no content`);

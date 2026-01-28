@@ -1,19 +1,360 @@
 {
-  "startTime": "2026-01-28T02:26:07.137Z",
-  "endTime": "2026-01-28T02:26:08.196Z",
-  "duration": 1059,
+  "startTime": "2026-01-28T02:47:24.826Z",
+  "endTime": "2026-01-28T02:47:42.098Z",
+  "duration": 17272,
   "outputDir": "./exports/freshdesk-kb",
   "counts": {
     "categoriesProcessed": 1,
     "foldersProcessed": 2,
-    "articlesProcessed": 0,
-    "filesCreated": 0,
+    "articlesProcessed": 53,
+    "filesCreated": 53,
     "filesUpdated": 0,
     "filesSkipped": 0,
     "filesFailed": 0
   },
-  "files": [],
+  "files": [
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/acquiring-bank-acquirer-merchant-bank-or-credit-card-processor.md",
+      "status": "created",
+      "articleId": 28000020344,
+      "articleTitle": "Acquiring Bank (Acquirer, merchant bank or credit card processor)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/active-membership.md",
+      "status": "created",
+      "articleId": 28000020363,
+      "articleTitle": "Active Membership"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/admin-merchant-admin-system-admin-administrator.md",
+      "status": "created",
+      "articleId": 28000020364,
+      "articleTitle": "Admin (Merchant Admin, System Admin/Administrator)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/affiliate.md",
+      "status": "created",
+      "articleId": 28000020365,
+      "articleTitle": "Affiliate"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/auth-authorization-authorization-hold-card-authorization-preauthorization-or-pre-auth.md",
+      "status": "created",
+      "articleId": 28000020366,
+      "articleTitle": "Auth (Authorization, Authorization Hold, Card Authorization, Preauthorization or Pre-auth)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/auth.md",
+      "status": "created",
+      "articleId": 28000020367,
+      "articleTitle": "Auth #"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/auth-only-authorization-only.md",
+      "status": "created",
+      "articleId": 28000020369,
+      "articleTitle": "Auth-Only (Authorization Only)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/auth-ratio.md",
+      "status": "created",
+      "articleId": 28000020368,
+      "articleTitle": "Auth Ratio"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/avs-avs-response-address-verification-service.md",
+      "status": "created",
+      "articleId": 28000020370,
+      "articleTitle": "AVS/AVS Response (Address Verification Service)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/batch.md",
+      "status": "created",
+      "articleId": 28000020371,
+      "articleTitle": "Batch"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/batch-2.md",
+      "status": "created",
+      "articleId": 28000020372,
+      "articleTitle": "Batch #"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/bank.md",
+      "status": "created",
+      "articleId": 28000020373,
+      "articleTitle": "Bank"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/bank-code.md",
+      "status": "created",
+      "articleId": 28000020374,
+      "articleTitle": "Bank Code"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/billing-type.md",
+      "status": "created",
+      "articleId": 28000020375,
+      "articleTitle": "Billing Type"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/bin.md",
+      "status": "created",
+      "articleId": 28000020376,
+      "articleTitle": "BIN"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/breakout.md",
+      "status": "created",
+      "articleId": 28000020377,
+      "articleTitle": "Breakout"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/canceling-membership-set-to-cancel.md",
+      "status": "created",
+      "articleId": 28000020378,
+      "articleTitle": "Canceling Membership (Set to Cancel)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/card-category.md",
+      "status": "created",
+      "articleId": 28000020379,
+      "articleTitle": "Card Category"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/cascade.md",
+      "status": "created",
+      "articleId": 28000020380,
+      "articleTitle": "Cascade"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/chargeback.md",
+      "status": "created",
+      "articleId": 28000020381,
+      "articleTitle": "Chargeback"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/chargeback-reason-code.md",
+      "status": "created",
+      "articleId": 28000020382,
+      "articleTitle": "Chargeback Reason Code"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/chargeback-retrieval.md",
+      "status": "created",
+      "articleId": 28000020383,
+      "articleTitle": "Chargeback Retrieval"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/chargeback-reversal.md",
+      "status": "created",
+      "articleId": 28000020384,
+      "articleTitle": "Chargeback Reversal"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/connection.md",
+      "status": "created",
+      "articleId": 28000020385,
+      "articleTitle": "Connection"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/conversion.md",
+      "status": "created",
+      "articleId": 28000020571,
+      "articleTitle": "Conversion"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/credit.md",
+      "status": "created",
+      "articleId": 28000020386,
+      "articleTitle": "Credit"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/cron-job.md",
+      "status": "created",
+      "articleId": 28000020387,
+      "articleTitle": "Cron Job"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/customer-id-customer.md",
+      "status": "created",
+      "articleId": 28000020388,
+      "articleTitle": "Customer ID (Customer #)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/cvv-response-cvv.md",
+      "status": "created",
+      "articleId": 28000020389,
+      "articleTitle": "CVV Response/CVV"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/decline.md",
+      "status": "created",
+      "articleId": 28000020390,
+      "articleTitle": "Decline"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/decline-reason-decline-reason-code.md",
+      "status": "created",
+      "articleId": 28000020391,
+      "articleTitle": "Decline Reason (Decline Reason Code)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/fraud-scrubbing.md",
+      "status": "created",
+      "articleId": 28000020906,
+      "articleTitle": "Fraud Scrubbing"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/integration.md",
+      "status": "created",
+      "articleId": 28000020392,
+      "articleTitle": "Integration"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/internet-protocol-ip-address.md",
+      "status": "created",
+      "articleId": 28000020393,
+      "articleTitle": "Internet Protocol (IP) Address"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/invoice-id-invoice.md",
+      "status": "created",
+      "articleId": 28000020394,
+      "articleTitle": "Invoice ID (Invoice #)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/issuing-bank.md",
+      "status": "created",
+      "articleId": 28000020395,
+      "articleTitle": "Issuing Bank"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/join.md",
+      "status": "created",
+      "articleId": 28000020396,
+      "articleTitle": "Join"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/membership-value.md",
+      "status": "created",
+      "articleId": 28000020397,
+      "articleTitle": "Membership Value"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/merchant.md",
+      "status": "created",
+      "articleId": 28000020398,
+      "articleTitle": "Merchant"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/merchant-account-mid.md",
+      "status": "created",
+      "articleId": 28000020399,
+      "articleTitle": "Merchant Account (MID)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/merchant-id.md",
+      "status": "created",
+      "articleId": 28000020400,
+      "articleTitle": "Merchant ID"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/merchant-group-company.md",
+      "status": "created",
+      "articleId": 28000020401,
+      "articleTitle": "Merchant Group (Company)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/negative-database-neg-db.md",
+      "status": "created",
+      "articleId": 28000020402,
+      "articleTitle": "Negative Database (Neg DB)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/sale.md",
+      "status": "created",
+      "articleId": 28000020403,
+      "articleTitle": "Sale"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/var-sheet.md",
+      "status": "created",
+      "articleId": 28000020570,
+      "articleTitle": "VAR Sheet"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/void.md",
+      "status": "created",
+      "articleId": 28000020404,
+      "articleTitle": "Void"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/general-terms/co-1-2-3.md",
+      "status": "created",
+      "articleId": 28000021244,
+      "articleTitle": "CO* (1,2,3)"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/transaction-status-terms/success.md",
+      "status": "created",
+      "articleId": 28000020405,
+      "articleTitle": "Success"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/transaction-status-terms/bank-decline.md",
+      "status": "created",
+      "articleId": 28000020406,
+      "articleTitle": "Bank Decline"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/transaction-status-terms/risk-decline.md",
+      "status": "created",
+      "articleId": 28000020407,
+      "articleTitle": "Risk Decline"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/transaction-status-terms/system-error.md",
+      "status": "created",
+      "articleId": 28000020408,
+      "articleTitle": "System Error"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/transaction-status-terms/request-error.md",
+      "status": "created",
+      "articleId": 28000020409,
+      "articleTitle": "Request Error"
+    },
+    {
+      "path": "exports/freshdesk-kb/kb/glossary/transaction-status-terms/page-error.md",
+      "status": "created",
+      "articleId": 28000020410,
+      "articleTitle": "Page Error"
+    }
+  ],
   "options": {
-    "downloadAssets": false
-  }
+    "downloadAssets": false,
+    "languageMode": "all"
+  },
+  "logs": [
+    "Language mode: all",
+    "Exporting 1 categories",
+    "Processing category: Glossary (ID: 28000016637)",
+    "  Found 2 folders in category Glossary",
+    "  Processing folder: General Terms (ID: 28000026611)",
+    "    Fetched 47 articles from API",
+    "    Sample articles (first 3):",
+    "      - ID: 28000020344, Title: \"Acquiring Bank (Acquirer, merchant bank or credit card processor)\", Status: 2, Language: null, Updated: 2020-03-23T20:39:41Z",
+    "      - ID: 28000020363, Title: \"Active Membership\", Status: 2, Language: null, Updated: 2020-03-25T18:34:59Z",
+    "      - ID: 28000020364, Title: \"Admin (Merchant Admin, System Admin/Administrator)\", Status: 2, Language: null, Updated: 2020-03-25T18:35:39Z",
+    "    After published filter: 47 articles",
+    "  Processing folder: Transaction Status Terms (ID: 28000026622)",
+    "    Fetched 6 articles from API",
+    "    Sample articles (first 3):",
+    "      - ID: 28000020405, Title: \"Success\", Status: 2, Language: null, Updated: 2022-03-14T15:45:39Z",
+    "      - ID: 28000020406, Title: \"Bank Decline\", Status: 2, Language: null, Updated: 2020-03-25T20:00:08Z",
+    "      - ID: 28000020407, Title: \"Risk Decline\", Status: 2, Language: null, Updated: 2022-03-14T15:47:58Z",
+    "    After published filter: 6 articles",
+    "Export complete: 53 articles processed"
+  ]
 }
