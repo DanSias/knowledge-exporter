@@ -1,0 +1,172 @@
+/**
+ * Confluence Cloud exporter implementation
+ */
+
+import path from 'path';
+import { ExporterProvider, ExportScope, ExportOptions } from '../types';
+import { listSpaces, listPagesInSpace, getPage } from './api';
+import { ConfluenceSpace, ConfluencePage, ConfluencePageWithBody } from './types';
+import { slugify, makeUniqueSlug } from '../utils/slugify';
+import { htmlToMarkdown } from '../utils/htmlToMarkdown';
+import { ensureTitleHeading } from '../utils/ensureTitleHeading';
+import { writeFileIdempotent } from '../utils/fileWriter';
+import { splitMarkdown } from '../utils/splitMarkdown';
+import {
+  createReport,
+  finalizeReport,
+  writeReportJson,
+  writeSummaryMarkdown,
+  ExportReport,
+  FileResult,
+} from '../utils/report';
+
+export class ConfluenceExporter implements ExporterProvider {
+  key = 'confluence';
+
+  async preview(): Promise<import('../types').PreviewResult> {
+    throw new Error('Use preview route handler instead');
+  }
+
+  /**
+   * Run the export operation
+   */
+  async run(scope: ExportScope, options: ExportOptions): Promise<ExportReport> {
+    const startTimestamp = Date.now();
+    const report = createReport(options.outputDir, {
+      downloadAssets: options.downloadAssets,
+      maxCharsPerFile: options.maxCharsPerFile,
+    });
+
+    try {
+      // Fetch all spaces
+      const allSpaces = await listSpaces();
+      report.logs.push(`Fetched ${allSpaces.length} total spaces from Confluence`);
+
+      // Filter spaces based on scope
+      const spacesToExport = scope.exportAll
+        ? allSpaces
+        : allSpaces.filter((s) => scope.spaceIds?.includes(s.id.toString()));
+
+      report.logs.push(`Exporting ${spacesToExport.length} spaces`);
+
+      // Track slugs to avoid collisions within each space
+      const usedPageSlugsPerSpace = new Map<string, Set<string>>();
+
+      // Process each space
+      for (const space of spacesToExport) {
+        report.logs.push(`Processing space: ${space.name} (${space.key})`);
+
+        const pageSlugsForSpace = new Set<string>();
+        usedPageSlugsPerSpace.set(space.key, pageSlugsForSpace);
+
+        const spacePath = path.join(options.outputDir, 'kb', space.key);
+
+        try {
+          // Fetch pages in this space (type=page only, no blogs)
+          const pages = await listPagesInSpace(space.key);
+          report.logs.push(`  Found ${pages.length} pages in space ${space.key}`);
+
+          if (pages.length >= 500) {
+            report.logs.push(`  ⚠ Warning: Space has 500+ pages, may be truncated`);
+          }
+
+          // Process each page
+          for (const page of pages) {
+            try {
+              // Fetch full page details with body
+              const pageDetail = await getPage(page.id);
+
+              // Extract title and body
+              const pageTitle = pageDetail.title;
+              const htmlBody = pageDetail.body?.storage?.value || '';
+
+              if (!htmlBody) {
+                report.logs.push(`    ⚠ Skipping page ${page.id} - no body content`);
+                report.counts.filesSkipped++;
+                continue;
+              }
+
+              // Convert storage format to Markdown
+              let markdown = htmlToMarkdown(htmlBody);
+
+              // Ensure H1 title heading
+              markdown = ensureTitleHeading(pageTitle, markdown);
+
+              // Generate slug from title, include pageId for uniqueness
+              const baseSlug = slugify(pageTitle);
+              const baseFilename = `${baseSlug}--${page.id}.md`;
+
+              // Apply file splitting if configured
+              let markdownParts: Array<{ content: string; fileName: string }>;
+              if (options.maxCharsPerFile && options.maxCharsPerFile > 0) {
+                const parts = splitMarkdown(markdown, baseFilename, options.maxCharsPerFile);
+                markdownParts = parts.map(part => ({ content: part.content, fileName: part.fileName }));
+              } else {
+                markdownParts = [{ content: markdown, fileName: baseFilename }];
+              }
+
+              // Write file(s)
+              for (const part of markdownParts) {
+                const filePath = path.join(spacePath, part.fileName);
+
+                const result = await writeFileIdempotent(filePath, part.content);
+
+                const fileResult: FileResult = {
+                  path: result.path,
+                  status: result.status,
+                };
+                report.files.push(fileResult);
+
+                if (result.status === 'created') {
+                  report.counts.filesCreated++;
+                } else if (result.status === 'updated') {
+                  report.counts.filesUpdated++;
+                } else if (result.status === 'skipped') {
+                  report.counts.filesSkipped++;
+                }
+              }
+
+              report.counts.pagesProcessed = (report.counts.pagesProcessed || 0) + 1;
+            } catch (pageError) {
+              const errorMessage = pageError instanceof Error ? pageError.message : 'Unknown error';
+              report.logs.push(`    ✗ Failed to process page ${page.id}: ${errorMessage}`);
+              report.counts.pagesFailed = (report.counts.pagesFailed || 0) + 1;
+            }
+          }
+        } catch (spaceError) {
+          const errorMessage = spaceError instanceof Error ? spaceError.message : 'Unknown error';
+          report.logs.push(`  ✗ Failed to process space ${space.key}: ${errorMessage}`);
+        }
+      }
+
+      // Finalize report
+      finalizeReport(report, startTimestamp);
+      report.logs.push(`Export completed in ${report.executionTime}s`);
+      report.logs.push(`  Pages processed: ${report.counts.pagesProcessed}`);
+      report.logs.push(`  Files created: ${report.counts.filesCreated}`);
+      report.logs.push(`  Files updated: ${report.counts.filesUpdated}`);
+      report.logs.push(`  Files skipped: ${report.counts.filesSkipped}`);
+
+      // Write report files
+      await writeReportJson(report);
+      await writeSummaryMarkdown(report);
+
+      return report;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      report.logs.push(`✗ Fatal error: ${errorMessage}`);
+      report.status = 'failed';
+      finalizeReport(report, startTimestamp);
+
+      // Try to write report even on failure
+      try {
+        await writeReportJson(report);
+        await writeSummaryMarkdown(report);
+      } catch (reportError) {
+        report.logs.push(`Failed to write report: ${reportError}`);
+      }
+
+      throw error;
+    }
+  }
+}

@@ -83,7 +83,7 @@ export class FreshdeskExporter implements ExporterProvider {
         // Fetch folders in this category
         const folders = await listFolders(category.id);
         report.logs.push(`  Found ${folders.length} folders in category ${category.name}`);
-        report.counts.foldersProcessed += folders.length;
+        report.counts.foldersProcessed = (report.counts.foldersProcessed || 0) + folders.length;
 
         const folderSlugsForCategory = new Set<string>();
         usedFolderSlugs.set(category.id, folderSlugsForCategory);
@@ -201,12 +201,12 @@ export class FreshdeskExporter implements ExporterProvider {
                   };
 
                   report.files.push(fileResult);
-                  report.counts.filesFailed++;
+                  report.counts.filesFailed = (report.counts.filesFailed || 0) + 1;
                   report.logs.push(`    Error writing file: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
               }
 
-              report.counts.articlesProcessed++;
+              report.counts.articlesProcessed = (report.counts.articlesProcessed || 0) + 1;
             } catch (error) {
               // Article processing failed
               const fileResult: FileResult = {
@@ -218,7 +218,7 @@ export class FreshdeskExporter implements ExporterProvider {
               };
 
               report.files.push(fileResult);
-              report.counts.filesFailed++;
+              report.counts.filesFailed = (report.counts.filesFailed || 0) + 1;
               report.logs.push(`    Error processing article "${article.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
           }
@@ -228,7 +228,7 @@ export class FreshdeskExporter implements ExporterProvider {
           }
         }
 
-        report.counts.categoriesProcessed++;
+        report.counts.categoriesProcessed = (report.counts.categoriesProcessed || 0) + 1;
       }
 
       report.logs.push(`Export complete: ${report.counts.articlesProcessed} articles processed`);
@@ -237,8 +237,8 @@ export class FreshdeskExporter implements ExporterProvider {
       const finalReport = finalizeReport(report, startTimestamp);
 
       // Write report files
-      await writeReportJson(options.outputDir, finalReport);
-      await writeSummaryMarkdown(options.outputDir, finalReport);
+      await writeReportJson(finalReport);
+      await writeSummaryMarkdown(finalReport);
 
       return finalReport;
     } catch (error) {
@@ -248,8 +248,8 @@ export class FreshdeskExporter implements ExporterProvider {
 
       // Still write reports even on failure
       try {
-        await writeReportJson(options.outputDir, finalReport);
-        await writeSummaryMarkdown(options.outputDir, finalReport);
+        await writeReportJson(finalReport);
+        await writeSummaryMarkdown(finalReport);
       } catch (reportError) {
         // Ignore report writing errors
       }

@@ -12,9 +12,9 @@ export default function Home() {
             Knowledge Exporter
           </h1>
           <p className="mx-auto max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
-            Export support knowledge bases like Freshdesk Solutions to deterministic Markdown files.
+            Export support knowledge bases and wikis to deterministic Markdown files.
+            Supports Freshdesk Solutions and Confluence Cloud.
             Perfect for feeding into documentation systems, AI tools, or version control.
-            This tool handles export only—ingestion and search are handled by downstream tools like Verbatim.
           </p>
         </div>
 
@@ -72,17 +72,31 @@ export default function Home() {
         </Card>
 
         {/* Provider Support */}
-        <Alert variant="info" className="mb-8">
-          <div>
-            <p className="font-medium">Freshdesk Solutions supported</p>
-            <p className="mt-1 text-sm">
-              Export and explore Freshdesk knowledge base content.{' '}
-              <Link href="/freshdesk" className="underline hover:text-blue-700">
-                View Freshdesk tools →
-              </Link>
-            </p>
-          </div>
-        </Alert>
+        <div className="mb-8 grid gap-4 md:grid-cols-2">
+          <Alert variant="info">
+            <div>
+              <p className="font-medium">Freshdesk Solutions</p>
+              <p className="mt-1 text-sm">
+                Export and explore knowledge base content.{' '}
+                <Link href="/freshdesk" className="underline hover:text-blue-700">
+                  View tools →
+                </Link>
+              </p>
+            </div>
+          </Alert>
+
+          <Alert variant="info">
+            <div>
+              <p className="font-medium">Confluence Cloud</p>
+              <p className="mt-1 text-sm">
+                Preview spaces and pages (export coming soon).{' '}
+                <Link href="/confluence" className="underline hover:text-blue-700">
+                  View tools →
+                </Link>
+              </p>
+            </div>
+          </Alert>
+        </div>
 
         {/* Features Grid */}
         <div className="mb-8 grid gap-6 md:grid-cols-2">

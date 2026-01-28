@@ -17,16 +17,20 @@ export interface ExportReport {
   startTime: string;
   endTime: string;
   duration: number; // milliseconds
+  executionTime?: number; // seconds (for convenience)
   outputDir: string;
+  status: 'running' | 'completed' | 'failed';
 
   counts: {
-    categoriesProcessed: number;
-    foldersProcessed: number;
-    articlesProcessed: number;
+    categoriesProcessed?: number; // Freshdesk only
+    foldersProcessed?: number; // Freshdesk only
+    articlesProcessed?: number; // Freshdesk only
+    pagesProcessed?: number; // Confluence only
+    pagesFailed?: number; // Confluence only
     filesCreated: number;
     filesUpdated: number;
     filesSkipped: number;
-    filesFailed: number;
+    filesFailed?: number;
   };
 
   files: FileResult[];
@@ -43,11 +47,8 @@ export interface ExportReport {
 /**
  * Generate machine-readable JSON report
  */
-export async function writeReportJson(
-  outputDir: string,
-  report: ExportReport
-): Promise<void> {
-  const reportPath = path.join(outputDir, 'report.json');
+export async function writeReportJson(report: ExportReport): Promise<void> {
+  const reportPath = path.join(report.outputDir, 'report.json');
   const content = JSON.stringify(report, null, 2);
   await writeFileIdempotent(reportPath, content);
 }
@@ -55,11 +56,8 @@ export async function writeReportJson(
 /**
  * Generate human-readable Markdown summary
  */
-export async function writeSummaryMarkdown(
-  outputDir: string,
-  report: ExportReport
-): Promise<void> {
-  const summaryPath = path.join(outputDir, 'SUMMARY.md');
+export async function writeSummaryMarkdown(report: ExportReport): Promise<void> {
+  const summaryPath = path.join(report.outputDir, 'SUMMARY.md');
 
   const durationSec = (report.duration / 1000).toFixed(2);
 
@@ -71,16 +69,33 @@ export async function writeSummaryMarkdown(
 
 ## Statistics
 
-- **Categories Processed:** ${report.counts.categoriesProcessed}
-- **Folders Processed:** ${report.counts.foldersProcessed}
-- **Articles Processed:** ${report.counts.articlesProcessed}
+`;
+
+  // Add provider-specific stats
+  if (report.counts.categoriesProcessed !== undefined) {
+    content += `- **Categories Processed:** ${report.counts.categoriesProcessed}\n`;
+  }
+  if (report.counts.foldersProcessed !== undefined) {
+    content += `- **Folders Processed:** ${report.counts.foldersProcessed}\n`;
+  }
+  if (report.counts.articlesProcessed !== undefined) {
+    content += `- **Articles Processed:** ${report.counts.articlesProcessed}\n`;
+  }
+  if (report.counts.pagesProcessed !== undefined) {
+    content += `- **Pages Processed:** ${report.counts.pagesProcessed}\n`;
+  }
+  if (report.counts.pagesFailed !== undefined && report.counts.pagesFailed > 0) {
+    content += `- **Pages Failed:** ${report.counts.pagesFailed}\n`;
+  }
+
+  content += `
 
 ## Files
 
 - **Created:** ${report.counts.filesCreated}
 - **Updated:** ${report.counts.filesUpdated}
 - **Skipped:** ${report.counts.filesSkipped}
-- **Failed:** ${report.counts.filesFailed}
+- **Failed:** ${report.counts.filesFailed || 0}
 
 ## Options
 
@@ -102,7 +117,7 @@ export async function writeSummaryMarkdown(
   }
 
   // Add output directory
-  content += `## Output Directory\n\n\`${path.resolve(outputDir)}\`\n`;
+  content += `## Output Directory\n\n\`${path.resolve(report.outputDir)}\`\n`;
 
   // Add logs section if any
   if (report.logs && report.logs.length > 0) {
@@ -128,10 +143,13 @@ export function createReport(
     endTime: '',
     duration: 0,
     outputDir,
+    status: 'running',
     counts: {
       categoriesProcessed: 0,
       foldersProcessed: 0,
       articlesProcessed: 0,
+      pagesProcessed: 0,
+      pagesFailed: 0,
       filesCreated: 0,
       filesUpdated: 0,
       filesSkipped: 0,
@@ -151,9 +169,12 @@ export function finalizeReport(
   startTimestamp: number
 ): ExportReport {
   const endTime = new Date();
+  const durationMs = endTime.getTime() - startTimestamp;
   return {
     ...report,
     endTime: endTime.toISOString(),
-    duration: endTime.getTime() - startTimestamp,
+    duration: durationMs,
+    executionTime: Math.round(durationMs / 1000),
+    status: report.status === 'failed' ? 'failed' : 'completed',
   };
 }

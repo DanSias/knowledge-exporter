@@ -36,7 +36,8 @@ export interface PreviewResult {
 
 export interface ExportScope {
   exportAll: boolean;
-  categoryIds?: number[];
+  categoryIds?: number[]; // For Freshdesk
+  spaceIds?: string[]; // For Confluence
 }
 
 export interface ExportOptions {
