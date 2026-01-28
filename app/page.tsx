@@ -21,10 +21,10 @@ export default function Home() {
         {/* Getting Started CTA */}
         <div className="mb-8">
           <Link
-            href="/pilot/export"
+            href="/freshdesk"
             className="mx-auto flex w-full max-w-md items-center justify-center rounded-lg bg-blue-600 px-8 py-4 text-lg font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
-            Start an Export →
+            Get Started with Freshdesk →
           </Link>
         </div>
 
@@ -76,7 +76,10 @@ export default function Home() {
           <div>
             <p className="font-medium">Freshdesk Solutions supported</p>
             <p className="mt-1 text-sm">
-              Additional providers (Zendesk, Intercom, etc.) are planned for future releases.
+              Export and explore Freshdesk knowledge base content.{' '}
+              <Link href="/freshdesk" className="underline hover:text-blue-700">
+                View Freshdesk tools →
+              </Link>
             </p>
           </div>
         </Alert>
