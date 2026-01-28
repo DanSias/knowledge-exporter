@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Knowledge Exporter
 
-## Getting Started
+Export support knowledge bases like Freshdesk Solutions to deterministic Markdown files.
 
-First, run the development server:
+## What It Does
+
+Knowledge Exporter connects to support platforms (currently Freshdesk Solutions) and exports articles to clean, deterministic Markdown files. Perfect for:
+- Feeding into documentation systems
+- Training AI models
+- Version controlling your knowledge base
+- Migrating between platforms
+
+**What it does NOT do**: Ingestion, search, or indexing. Those are handled by downstream tools like Verbatim.
+
+## Quick Start
 
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Configure environment
+cp .env.example .env.local
+# Edit .env.local with your credentials
+
+# 3. Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# 4. Visit http://localhost:3000
+# Click "Start an Export" to begin
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+See [QUICK_START.md](./QUICK_START.md) for detailed setup instructions.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- ✅ **Deterministic output**: Consistent file paths (`kb/<category>/<folder>/<slug>.md`)
+- ✅ **Idempotent writes**: Skip unchanged files, update modified content
+- ✅ **Clean Markdown**: HTML converted with preserved structure
+- ✅ **Published content only**: Filters for published English articles
+- ✅ **File splitting**: Optional splitting for large articles
+- ✅ **Comprehensive reports**: JSON and Markdown summaries
 
-## Learn More
+## Supported Providers
 
-To learn more about Next.js, take a look at the following resources:
+- ✅ **Freshdesk Solutions** (v2 API)
+- 🔄 Zendesk, Intercom, and others planned
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [Quick Start Guide](./QUICK_START.md) - 30-second setup
+- [Export Implementation](./EXPORT_IMPLEMENTATION.md) - Complete technical documentation
+- [Manual Test Guide](./MANUAL_TEST_GUIDE.md) - Comprehensive testing procedures
+- [Phase 1 Summary](./PHASE1_SUMMARY.md) - Implementation overview
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+knowledge-exporter/
+├── app/
+│   ├── api/export/freshdesk/      # API routes
+│   ├── components/                # Shared UI components
+│   └── pilot/export/              # Export wizard UI
+├── lib/
+│   └── exporters/
+│       ├── freshdesk/             # Freshdesk implementation
+│       └── utils/                 # Shared utilities
+└── exports/                       # Default output directory
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Development
+
+```bash
+# Run tests
+npm test
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# Lint code
+npm run lint
+```
+
+## Environment Variables
+
+Required:
+- `FRESHDESK_API_KEY` - Your Freshdesk API key
+- `FRESHDESK_HOST` - Your Freshdesk domain (e.g., `yourcompany.freshdesk.com`)
+
+Optional:
+- `EXPORT_OUTPUT_DIR` - Default: `./exports/freshdesk-kb`
+- `EXPORT_DOWNLOAD_ASSETS` - Default: `false`
+
+See [.env.example](./.env.example) for details.
+
+## Built With
+
+- [Next.js 16](https://nextjs.org/) - React framework
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- [Tailwind CSS](https://tailwindcss.com/) - Styling
+- [Turndown](https://github.com/mixmark-io/turndown) - HTML to Markdown conversion
+- [Vitest](https://vitest.dev/) - Testing
+
+## License
+
+Copyright © 2026. All rights reserved.
+
+## Contributing
+
+This is a private project. For issues or questions, please contact the development team.

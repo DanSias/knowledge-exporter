@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Alert } from '@/app/components/Alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/Card';
 import { StepIndicator, Step } from '@/app/components/StepIndicator';
-import { PreviewResult } from '@/lib/exporters/types';
+import { StepPanel } from '@/app/components/StepPanel';
+import { CategoryDetailsModal } from '@/app/components/CategoryDetailsModal';
+import { PreviewResult, CategoryPreview } from '@/lib/exporters/types';
 
 interface ExportWizardProps {
   hasApiKey: boolean;
@@ -53,6 +54,10 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
   // State for scope selection (Step 2)
   const [exportAll, setExportAll] = useState(true);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
+
+  // State for category details modal
+  const [selectedCategoryForModal, setSelectedCategoryForModal] = useState<CategoryPreview | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // State for options (Step 3)
   const [outputDir, setOutputDir] = useState('./exports/freshdesk-kb');
@@ -140,7 +145,6 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
       setJobId(data.jobId);
       setCurrentStep(4);
 
-      // Start polling
       fetchJobStatus(data.jobId);
     } catch (error) {
       console.error('Failed to start export:', error);
@@ -159,7 +163,6 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
       const data: JobStatus = await response.json();
       setJobStatus(data);
 
-      // If job completed or failed, move to step 5
       if ((data.status === 'completed' || data.status === 'failed') && currentStep === 4) {
         setCurrentStep(5);
       }
@@ -188,137 +191,218 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
     }
   };
 
+  const openCategoryModal = (category: CategoryPreview) => {
+    setSelectedCategoryForModal(category);
+    setIsModalOpen(true);
+  };
+
+  const closeCategoryModal = () => {
+    setIsModalOpen(false);
+    // Small delay before clearing to allow modal close animation
+    setTimeout(() => setSelectedCategoryForModal(null), 200);
+  };
+
+  // Compute selection totals
+  const selectionTotals = useMemo(() => {
+    if (!previewData || exportAll) {
+      return null;
+    }
+
+    const selectedCategories = previewData.categories.filter((c) =>
+      selectedCategoryIds.has(c.id)
+    );
+
+    return {
+      folders: selectedCategories.reduce((sum, c) => sum + c.folderCount, 0),
+      articles: selectedCategories.reduce((sum, c) => sum + c.articleCount, 0),
+      englishPublished: selectedCategories.reduce(
+        (sum, c) => sum + c.englishPublishedArticleCount,
+        0
+      ),
+    };
+  }, [previewData, selectedCategoryIds, exportAll]);
+
   const steps: Step[] = [
     { number: 1, title: 'Configure', status: currentStep > 1 ? 'complete' : 'current' },
-    { number: 2, title: 'Scope', status: currentStep === 2 ? 'current' : currentStep > 2 ? 'complete' : 'pending' },
-    { number: 3, title: 'Options', status: currentStep === 3 ? 'current' : currentStep > 3 ? 'complete' : 'pending' },
-    { number: 4, title: 'Run', status: currentStep === 4 ? 'current' : currentStep > 4 ? 'complete' : 'pending' },
+    {
+      number: 2,
+      title: 'Scope',
+      status: currentStep === 2 ? 'current' : currentStep > 2 ? 'complete' : 'pending',
+    },
+    {
+      number: 3,
+      title: 'Options',
+      status: currentStep === 3 ? 'current' : currentStep > 3 ? 'complete' : 'pending',
+    },
+    {
+      number: 4,
+      title: 'Run',
+      status: currentStep === 4 ? 'current' : currentStep > 4 ? 'complete' : 'pending',
+    },
     { number: 5, title: 'Results', status: currentStep === 5 ? 'current' : 'pending' },
   ];
 
   const failedFiles = jobStatus?.report?.files.filter((f) => f.status === 'failed') || [];
+
+  // Step 1 summary
+  const step1Summary = `API key and host configured for ${baseUrl}`;
+
+  // Step 2 summary
+  const step2Summary = exportAll
+    ? `Export all ${previewData?.totals.categoryCount || 0} categories (${previewData?.totals.articleCount || 0} articles)`
+    : `Export ${selectedCategoryIds.size} selected ${selectedCategoryIds.size === 1 ? 'category' : 'categories'} (${selectionTotals?.articles || 0} articles)`;
+
+  // Step 3 summary
+  const step3Summary = `Output: ${outputDir}${downloadAssets ? ' • Download assets' : ''}${maxCharsPerFile ? ` • Split at ${maxCharsPerFile} chars` : ''}`;
 
   return (
     <div className="space-y-6">
       <StepIndicator steps={steps} />
 
       {/* Step 1: Configure */}
-      {currentStep >= 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 1: Configure</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Environment Variables
-                </h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">
-                      FRESHDESK_API_KEY
-                    </span>
-                    <span className={`text-sm font-medium ${hasApiKey ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-600'}`}>
-                      {hasApiKey ? '✓ Present' : '✗ Missing'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">
-                      FRESHDESK_HOST or FRESHDESK_DOMAIN
-                    </span>
-                    <span className={`text-sm font-medium ${hasHost ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 dark:text-zinc-600'}`}>
-                      {hasHost ? '✓ Present' : '✗ Missing'}
-                    </span>
-                  </div>
-                </div>
+      <StepPanel
+        stepNumber={1}
+        title="Configure"
+        isActive={currentStep === 1}
+        isCompleted={currentStep > 1 && isConfigured}
+        summary={step1Summary}
+      >
+        <div className="space-y-4">
+          <div>
+            <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Environment Variables
+            </h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">
+                  FRESHDESK_API_KEY
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    hasApiKey
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-zinc-400 dark:text-zinc-600'
+                  }`}
+                >
+                  {hasApiKey ? '✓ Present' : '✗ Missing'}
+                </span>
               </div>
-
-              {baseUrl && (
-                <div>
-                  <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Resolved Base URL
-                  </h4>
-                  <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <code className="text-sm text-zinc-900 dark:text-zinc-100">{baseUrl}</code>
-                  </div>
-                </div>
-              )}
-
-              {!isConfigured && (
-                <Alert variant="warning">
-                  <p className="font-medium">Missing required configuration</p>
-                  <p className="mt-1">Please set the following environment variables to continue:</p>
-                  <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
-                    {!hasApiKey && <li><code className="font-mono">FRESHDESK_API_KEY</code></li>}
-                    {!hasHost && <li><code className="font-mono">FRESHDESK_HOST</code> or <code className="font-mono">FRESHDESK_DOMAIN</code></li>}
-                  </ul>
-                </Alert>
-              )}
-
-              {isConfigured && currentStep === 1 && (
-                <>
-                  <Alert variant="success">
-                    <p className="font-medium">Configuration complete</p>
-                    <p className="mt-1 text-sm">All required environment variables are present.</p>
-                  </Alert>
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Continue to Scope Selection
-                  </button>
-                </>
-              )}
+              <div className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <span className="font-mono text-sm text-zinc-600 dark:text-zinc-400">
+                  FRESHDESK_HOST or FRESHDESK_DOMAIN
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    hasHost
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-zinc-400 dark:text-zinc-600'
+                  }`}
+                >
+                  {hasHost ? '✓ Present' : '✗ Missing'}
+                </span>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+          {baseUrl && (
+            <div>
+              <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Resolved Base URL
+              </h4>
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <code className="text-sm text-zinc-900 dark:text-zinc-100">{baseUrl}</code>
+              </div>
+            </div>
+          )}
+
+          {!isConfigured && (
+            <Alert variant="warning">
+              <p className="font-medium">Missing required configuration</p>
+              <p className="mt-1">Please set the following environment variables to continue:</p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
+                {!hasApiKey && (
+                  <li>
+                    <code className="font-mono">FRESHDESK_API_KEY</code>
+                  </li>
+                )}
+                {!hasHost && (
+                  <li>
+                    <code className="font-mono">FRESHDESK_HOST</code> or{' '}
+                    <code className="font-mono">FRESHDESK_DOMAIN</code>
+                  </li>
+                )}
+              </ul>
+            </Alert>
+          )}
+
+          {isConfigured && currentStep === 1 && (
+            <>
+              <Alert variant="success">
+                <p className="font-medium">Configuration complete</p>
+                <p className="mt-1 text-sm">All required environment variables are present.</p>
+              </Alert>
+              <button
+                onClick={() => setCurrentStep(2)}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Continue to Scope Selection
+              </button>
+            </>
+          )}
+        </div>
+      </StepPanel>
 
       {/* Step 2: Select Scope */}
       {currentStep >= 2 && isConfigured && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Step 2: Select Scope</CardTitle>
-              {currentStep > 2 && (
-                <button onClick={() => setCurrentStep(2)} className="text-sm text-blue-600 hover:text-blue-700">
-                  Edit
+        <StepPanel
+          stepNumber={2}
+          title="Select Scope"
+          isActive={currentStep === 2}
+          isCompleted={currentStep > 2}
+          summary={step2Summary}
+        >
+          <div className="space-y-4">
+            {previewLoading && (
+              <Alert variant="info">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
+                  <span>Loading categories from Freshdesk...</span>
+                </div>
+              </Alert>
+            )}
+
+            {previewError && (
+              <Alert variant="error">
+                <p className="font-medium">Failed to load preview</p>
+                <p className="mt-1 text-sm">{previewError}</p>
+                <button onClick={fetchPreview} className="mt-2 text-sm font-medium underline">
+                  Retry
                 </button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {previewLoading && (
-                <Alert variant="info">
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-                    <span>Loading categories from Freshdesk...</span>
-                  </div>
-                </Alert>
-              )}
+              </Alert>
+            )}
 
-              {previewError && (
-                <Alert variant="error">
-                  <p className="font-medium">Failed to load preview</p>
-                  <p className="mt-1 text-sm">{previewError}</p>
-                  <button onClick={fetchPreview} className="mt-2 text-sm font-medium underline">
-                    Retry
-                  </button>
-                </Alert>
-              )}
-
-              {previewData && !previewLoading && (
-                <>
-                  <div className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <div>
-                      <label htmlFor="export-all" className="font-medium text-zinc-900 dark:text-zinc-100">
+            {previewData && !previewLoading && (
+              <>
+                {/* Export all toggle with totals - Combined card */}
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <label
+                        htmlFor="export-all"
+                        className="block font-medium text-zinc-900 dark:text-zinc-100"
+                      >
                         Export all categories
                       </label>
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        Export all {previewData.categories.length} categories
+                      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                        {previewData.totals.categoryCount} categories •{' '}
+                        {previewData.totals.folderCount} folders •{' '}
+                        {previewData.totals.articleCount} articles
                       </p>
+                      {previewData.totals.englishPublishedArticleCount > 0 && (
+                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+                          English published: {previewData.totals.englishPublishedArticleCount}
+                        </p>
+                      )}
                     </div>
                     <input
                       id="export-all"
@@ -326,325 +410,379 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
                       checked={exportAll}
                       onChange={(e) => setExportAll(e.target.checked)}
                       disabled={currentStep > 2}
-                      className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                      className="mt-1 h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                     />
                   </div>
+                </div>
 
-                  {!exportAll && (
-                    <div>
-                      <div className="mb-3 flex items-center justify-between">
+                {/* Category selection */}
+                {!exportAll && (
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <div>
                         <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                           Select Categories ({selectedCategoryIds.size} selected)
                         </h4>
-                        {currentStep === 2 && (
-                          <button
-                            onClick={toggleSelectAll}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                          >
-                            {selectedCategoryIds.size === previewData.categories.length ? 'Deselect All' : 'Select All'}
-                          </button>
+                        {selectionTotals && (
+                          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                            {selectionTotals.folders} folders • {selectionTotals.articles} articles
+                          </p>
                         )}
                       </div>
-
-                      <div className="space-y-2">
-                        {previewData.categories.map((category) => (
-                          <div
-                            key={category.id}
-                            className="grid grid-cols-[auto_1fr_auto] gap-4 rounded-md border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-950"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedCategoryIds.has(category.id)}
-                              onChange={() => toggleCategory(category.id)}
-                              disabled={currentStep > 2}
-                              className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                            />
-                            <div>
-                              <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                                {category.name}
-                              </div>
-                              <div className="text-sm text-zinc-500 dark:text-zinc-500">
-                                {category.folderCount} folders · {category.articleCount} total articles
-                              </div>
-                            </div>
-                            <div className="text-right font-medium text-zinc-900 dark:text-zinc-100">
-                              {category.englishPublishedArticleCount}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      {currentStep === 2 && (
+                        <button
+                          onClick={toggleSelectAll}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                        >
+                          {selectedCategoryIds.size === previewData.categories.length
+                            ? 'Deselect All'
+                            : 'Select All'}
+                        </button>
+                      )}
                     </div>
-                  )}
 
-                  {currentStep === 2 && (
-                    <>
-                      <Alert variant="info">
-                        <p className="font-medium">
-                          {exportAll
-                            ? `Ready to export all categories`
-                            : `Ready to export ${selectedCategoryIds.size} selected ${selectedCategoryIds.size === 1 ? 'category' : 'categories'}`}
-                        </p>
-                        <p className="mt-1 text-sm">
-                          Total English published articles:{' '}
-                          {exportAll
-                            ? previewData.categories.reduce((sum, c) => sum + c.englishPublishedArticleCount, 0)
-                            : previewData.categories
-                                .filter((c) => selectedCategoryIds.has(c.id))
-                                .reduce((sum, c) => sum + c.englishPublishedArticleCount, 0)}
-                        </p>
-                      </Alert>
-                      <button
-                        onClick={() => setCurrentStep(3)}
-                        disabled={!exportAll && selectedCategoryIds.size === 0}
-                        className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Continue to Options
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-[auto_1fr_auto] gap-4 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+                        <div></div>
+                        <div>Category</div>
+                        <div className="text-right">Content</div>
+                      </div>
+
+                      {previewData.categories.map((category) => (
+                        <div
+                          key={category.id}
+                          className={`grid grid-cols-[auto_1fr_auto] gap-4 rounded-md border border-zinc-200 px-4 py-3 dark:border-zinc-800 transition-colors ${
+                            selectedCategoryIds.has(category.id)
+                              ? 'bg-blue-50 dark:bg-blue-950/30 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
+                              : 'bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedCategoryIds.has(category.id)}
+                            onChange={() => toggleCategory(category.id)}
+                            disabled={currentStep > 2}
+                            className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                          />
+                          <div>
+                            <button
+                              onClick={() => openCategoryModal(category)}
+                              className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer text-left underline decoration-transparent hover:decoration-current transition-colors"
+                            >
+                              {category.name}
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => openCategoryModal(category)}
+                            className="text-right text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 cursor-pointer underline decoration-transparent hover:decoration-current transition-colors"
+                          >
+                            {category.folderCount} folders • {category.articleCount} articles
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === 2 && (
+                  <button
+                    onClick={() => setCurrentStep(3)}
+                    disabled={!exportAll && selectedCategoryIds.size === 0}
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Continue to Options
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </StepPanel>
       )}
 
       {/* Step 3: Options */}
       {currentStep >= 3 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Step 3: Options</CardTitle>
-              {currentStep > 3 && (
-                <button onClick={() => setCurrentStep(3)} className="text-sm text-blue-600 hover:text-blue-700">
-                  Edit
-                </button>
-              )}
+        <StepPanel
+          stepNumber={3}
+          title="Options"
+          isActive={currentStep === 3}
+          isCompleted={currentStep > 3}
+          summary={step3Summary}
+        >
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="outputDir"
+                className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+              >
+                Output Directory
+              </label>
+              <input
+                id="outputDir"
+                type="text"
+                value={outputDir}
+                onChange={(e) => setOutputDir(e.target.value)}
+                disabled={currentStep > 3}
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                placeholder="./exports/freshdesk-kb"
+              />
+              <p className="mt-1 text-xs text-zinc-500">Path where exported files will be saved</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="outputDir" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Output Directory
-                </label>
-                <input
-                  id="outputDir"
-                  type="text"
-                  value={outputDir}
-                  onChange={(e) => setOutputDir(e.target.value)}
-                  disabled={currentStep > 3}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                  placeholder="./exports/freshdesk-kb"
-                />
-                <p className="mt-1 text-xs text-zinc-500">Path where exported files will be saved</p>
-              </div>
 
-              <div className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                <div>
-                  <label htmlFor="downloadAssets" className="font-medium text-zinc-900 dark:text-zinc-100">
-                    Download assets
-                  </label>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Download images and attachments locally (best-effort)
-                  </p>
-                </div>
-                <input
-                  id="downloadAssets"
-                  type="checkbox"
-                  checked={downloadAssets}
-                  onChange={(e) => setDownloadAssets(e.target.checked)}
-                  disabled={currentStep > 3}
-                  className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                />
-              </div>
-
+            <div className="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
               <div>
-                <label htmlFor="maxCharsPerFile" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                  Max Characters Per File (optional)
+                <label htmlFor="downloadAssets" className="font-medium text-zinc-900 dark:text-zinc-100">
+                  Download assets
                 </label>
-                <input
-                  id="maxCharsPerFile"
-                  type="number"
-                  value={maxCharsPerFile}
-                  onChange={(e) => setMaxCharsPerFile(e.target.value)}
-                  disabled={currentStep > 3}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                  placeholder="Leave empty for unlimited"
-                />
-                <p className="mt-1 text-xs text-zinc-500">
-                  Split large articles into multiple files (e.g., 50000)
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Download images and attachments locally (best-effort)
                 </p>
               </div>
-
-              {currentStep === 3 && (
-                <button
-                  onClick={() => setCurrentStep(4)}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  Continue to Run Export
-                </button>
-              )}
+              <input
+                id="downloadAssets"
+                type="checkbox"
+                checked={downloadAssets}
+                onChange={(e) => setDownloadAssets(e.target.checked)}
+                disabled={currentStep > 3}
+                className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+              />
             </div>
-          </CardContent>
-        </Card>
+
+            <div>
+              <label
+                htmlFor="maxCharsPerFile"
+                className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+              >
+                Max Characters Per File (optional)
+              </label>
+              <input
+                id="maxCharsPerFile"
+                type="number"
+                value={maxCharsPerFile}
+                onChange={(e) => setMaxCharsPerFile(e.target.value)}
+                disabled={currentStep > 3}
+                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                placeholder="Leave empty for unlimited"
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                Split large articles into multiple files (e.g., 50000)
+              </p>
+            </div>
+
+            {currentStep === 3 && (
+              <button
+                onClick={() => setCurrentStep(4)}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Continue to Run Export
+              </button>
+            )}
+          </div>
+        </StepPanel>
       )}
 
       {/* Step 4: Run */}
       {currentStep >= 4 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 4: Run Export</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {!jobId && (
-                <button
-                  onClick={startExport}
-                  className="rounded-md bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700"
-                >
-                  Start Export
-                </button>
-              )}
+        <StepPanel
+          stepNumber={4}
+          title="Run Export"
+          isActive={currentStep === 4}
+          isCompleted={currentStep > 4}
+          summary={
+            jobStatus
+              ? `Export ${jobStatus.status} - ${jobStatus.progress.articlesProcessed} articles processed`
+              : 'Export not started'
+          }
+        >
+          <div className="space-y-4">
+            {!jobId && (
+              <button
+                onClick={startExport}
+                className="rounded-md bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Start Export
+              </button>
+            )}
 
-              {jobStatus && (
-                <>
-                  <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-3 w-3 rounded-full ${
-                        jobStatus.status === 'running' ? 'bg-blue-500 animate-pulse' :
-                        jobStatus.status === 'completed' ? 'bg-green-500' :
-                        jobStatus.status === 'failed' ? 'bg-red-500' :
-                        'bg-zinc-400'
-                      }`}></div>
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        Status: {jobStatus.status.charAt(0).toUpperCase() + jobStatus.status.slice(1)}
-                      </span>
+            {jobStatus && (
+              <>
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`h-3 w-3 rounded-full ${
+                        jobStatus.status === 'running'
+                          ? 'animate-pulse bg-blue-500'
+                          : jobStatus.status === 'completed'
+                          ? 'bg-green-500'
+                          : jobStatus.status === 'failed'
+                          ? 'bg-red-500'
+                          : 'bg-zinc-400'
+                      }`}
+                    ></div>
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                      Status: {jobStatus.status.charAt(0).toUpperCase() + jobStatus.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+
+                {jobStatus.status === 'running' && (
+                  <div>
+                    <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Progress
+                    </h4>
+                    <div className="space-y-2 rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-600 dark:text-zinc-400">Categories</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {jobStatus.progress.categoriesProcessed}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-600 dark:text-zinc-400">Folders</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {jobStatus.progress.foldersProcessed}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-600 dark:text-zinc-400">Articles</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {jobStatus.progress.articlesProcessed}
+                        </span>
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  {jobStatus.status === 'running' && (
-                    <div>
-                      <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Progress</h4>
-                      <div className="space-y-2 rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-zinc-600 dark:text-zinc-400">Categories</span>
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{jobStatus.progress.categoriesProcessed}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-zinc-600 dark:text-zinc-400">Folders</span>
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{jobStatus.progress.foldersProcessed}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-zinc-600 dark:text-zinc-400">Articles</span>
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{jobStatus.progress.articlesProcessed}</span>
-                        </div>
-                      </div>
+                {jobStatus.logs.length > 0 && (
+                  <div>
+                    <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Recent Logs
+                    </h4>
+                    <div className="rounded-md border border-zinc-200 bg-zinc-950 px-4 py-3 font-mono text-xs text-green-400">
+                      {jobStatus.logs.map((log, i) => (
+                        <div key={i}>{log}</div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {jobStatus.logs.length > 0 && (
-                    <div>
-                      <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Recent Logs</h4>
-                      <div className="rounded-md border border-zinc-200 bg-zinc-950 px-4 py-3 font-mono text-xs text-green-400">
-                        {jobStatus.logs.map((log, i) => (
-                          <div key={i}>{log}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {jobStatus.error && (
-                    <Alert variant="error">
-                      <p className="font-medium">Export failed</p>
-                      <p className="mt-1 text-sm">{jobStatus.error}</p>
-                    </Alert>
-                  )}
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                {jobStatus.error && (
+                  <Alert variant="error">
+                    <p className="font-medium">Export failed</p>
+                    <p className="mt-1 text-sm">{jobStatus.error}</p>
+                  </Alert>
+                )}
+              </>
+            )}
+          </div>
+        </StepPanel>
       )}
 
       {/* Step 5: Results */}
       {currentStep === 5 && jobStatus?.report && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 5: Results</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Alert variant={jobStatus.status === 'completed' ? 'success' : 'error'}>
-                <p className="font-medium">
-                  {jobStatus.status === 'completed' ? 'Export completed successfully' : 'Export completed with errors'}
-                </p>
-              </Alert>
+        <StepPanel
+          stepNumber={5}
+          title="Results"
+          isActive={true}
+          isCompleted={false}
+          summary=""
+        >
+          <div className="space-y-4">
+            <Alert variant={jobStatus.status === 'completed' ? 'success' : 'error'}>
+              <p className="font-medium">
+                {jobStatus.status === 'completed'
+                  ? 'Export completed successfully'
+                  : 'Export completed with errors'}
+              </p>
+            </Alert>
 
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Statistics</h4>
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {jobStatus.report.counts.filesCreated}
-                    </div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">Created</div>
-                  </div>
-                  <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {jobStatus.report.counts.filesUpdated}
-                    </div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">Updated</div>
-                  </div>
-                  <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <div className="text-2xl font-bold text-zinc-600 dark:text-zinc-400">
-                      {jobStatus.report.counts.filesSkipped}
-                    </div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">Skipped</div>
-                  </div>
-                  <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                      {jobStatus.report.counts.filesFailed}
-                    </div>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400">Failed</div>
-                  </div>
-                </div>
-              </div>
-
-              {failedFiles.length > 0 && (
-                <div>
-                  <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Failed Files</h4>
-                  <div className="space-y-2">
-                    {failedFiles.map((file, i) => (
-                      <div key={i} className="rounded-md border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950">
-                        <div className="font-medium text-red-900 dark:text-red-100">{file.articleTitle || 'Unknown'}</div>
-                        <div className="mt-1 text-sm text-red-700 dark:text-red-300">{file.error}</div>
-                        <div className="mt-1 font-mono text-xs text-red-600 dark:text-red-400">{file.path}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Output Directory</h4>
+            <div>
+              <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Statistics
+              </h4>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                  <code className="text-sm text-zinc-900 dark:text-zinc-100">{jobStatus.report.outputDir}</code>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {jobStatus.report.counts.filesCreated}
+                  </div>
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">Created</div>
                 </div>
-                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-                  Open this folder in your file manager to view exported files
-                </p>
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {jobStatus.report.counts.filesUpdated}
+                  </div>
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">Updated</div>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-2xl font-bold text-zinc-600 dark:text-zinc-400">
+                    {jobStatus.report.counts.filesSkipped}
+                  </div>
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">Skipped</div>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                    {jobStatus.report.counts.filesFailed}
+                  </div>
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">Failed</div>
+                </div>
               </div>
-
-              <Alert variant="info">
-                <p className="text-sm">
-                  <strong>Files generated:</strong> report.json (machine-readable) and SUMMARY.md (human-readable) in the output directory
-                </p>
-              </Alert>
             </div>
-          </CardContent>
-        </Card>
+
+            {failedFiles.length > 0 && (
+              <div>
+                <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Failed Files
+                </h4>
+                <div className="space-y-2">
+                  {failedFiles.map((file, i) => (
+                    <div
+                      key={i}
+                      className="rounded-md border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950"
+                    >
+                      <div className="font-medium text-red-900 dark:text-red-100">
+                        {file.articleTitle || 'Unknown'}
+                      </div>
+                      <div className="mt-1 text-sm text-red-700 dark:text-red-300">
+                        {file.error}
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-red-600 dark:text-red-400">
+                        {file.path}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                Output Directory
+              </h4>
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <code className="text-sm text-zinc-900 dark:text-zinc-100">
+                  {jobStatus.report.outputDir}
+                </code>
+              </div>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                Open this folder in your file manager to view exported files
+              </p>
+            </div>
+
+            <Alert variant="info">
+              <p className="text-sm">
+                <strong>Files generated:</strong> report.json (machine-readable) and SUMMARY.md
+                (human-readable) in the output directory
+              </p>
+            </Alert>
+          </div>
+        </StepPanel>
       )}
+
+      {/* Category Details Modal */}
+      <CategoryDetailsModal
+        category={selectedCategoryForModal}
+        isOpen={isModalOpen}
+        onClose={closeCategoryModal}
+      />
     </div>
   );
 }

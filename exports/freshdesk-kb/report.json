@@ -1,0 +1,19 @@
+{
+  "startTime": "2026-01-28T02:26:07.137Z",
+  "endTime": "2026-01-28T02:26:08.196Z",
+  "duration": 1059,
+  "outputDir": "./exports/freshdesk-kb",
+  "counts": {
+    "categoriesProcessed": 1,
+    "foldersProcessed": 2,
+    "articlesProcessed": 0,
+    "filesCreated": 0,
+    "filesUpdated": 0,
+    "filesSkipped": 0,
+    "filesFailed": 0
+  },
+  "files": [],
+  "options": {
+    "downloadAssets": false
+  }
+}

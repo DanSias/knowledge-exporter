@@ -23,14 +23,28 @@ export async function GET() {
         const folders = await listFolders(category.id);
 
         // Fetch all articles across all folders in this category
-        const allArticles = await Promise.all(
+        const folderArticles = await Promise.all(
           folders.map((folder) => listArticles(folder.id))
         );
 
-        // Flatten articles array
-        const articles = allArticles.flat();
+        // Compute per-folder counts and build folder preview
+        const folderPreviews = folders.map((folder, index) => {
+          const articles = folderArticles[index];
+          const counts = computeArticleCounts(articles);
 
-        // Compute counts
+          return {
+            id: folder.id,
+            name: folder.name,
+            articleCount: counts.total,
+            publishedArticleCount: counts.published,
+            englishPublishedArticleCount: counts.englishPublished,
+          };
+        });
+
+        // Flatten articles array for category-level counts
+        const articles = folderArticles.flat();
+
+        // Compute category-level counts
         const counts = computeArticleCounts(articles);
 
         return {
@@ -40,13 +54,24 @@ export async function GET() {
           articleCount: counts.total,
           publishedArticleCount: counts.published,
           englishPublishedArticleCount: counts.englishPublished,
+          folders: folderPreviews,
         };
       })
     );
 
+    // Compute totals across all categories
+    const totals = {
+      categoryCount: categoryPreviews.length,
+      folderCount: categoryPreviews.reduce((sum, cat) => sum + cat.folderCount, 0),
+      articleCount: categoryPreviews.reduce((sum, cat) => sum + cat.articleCount, 0),
+      publishedArticleCount: categoryPreviews.reduce((sum, cat) => sum + cat.publishedArticleCount, 0),
+      englishPublishedArticleCount: categoryPreviews.reduce((sum, cat) => sum + cat.englishPublishedArticleCount, 0),
+    };
+
     const result: PreviewResult = {
       baseUrl,
       categories: categoryPreviews,
+      totals,
     };
 
     return NextResponse.json(result);

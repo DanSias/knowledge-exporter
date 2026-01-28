@@ -2,9 +2,26 @@
  * Core types for knowledge base exporters
  */
 
+export interface FolderPreview {
+  id: number;
+  name: string;
+  articleCount: number;
+  publishedArticleCount: number;
+  englishPublishedArticleCount: number;
+}
+
 export interface CategoryPreview {
   id: number;
   name: string;
+  folderCount: number;
+  articleCount: number;
+  publishedArticleCount: number;
+  englishPublishedArticleCount: number;
+  folders: FolderPreview[];
+}
+
+export interface PreviewTotals {
+  categoryCount: number;
   folderCount: number;
   articleCount: number;
   publishedArticleCount: number;
@@ -14,6 +31,7 @@ export interface CategoryPreview {
 export interface PreviewResult {
   baseUrl: string;
   categories: CategoryPreview[];
+  totals: PreviewTotals;
 }
 
 export interface ExportScope {
