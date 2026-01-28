@@ -63,6 +63,7 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
   const [outputDir, setOutputDir] = useState('./exports/freshdesk-kb');
   const [downloadAssets, setDownloadAssets] = useState(false);
   const [maxCharsPerFile, setMaxCharsPerFile] = useState('');
+  const [languageMode, setLanguageMode] = useState<'all' | 'en'>('all');
 
   // State for job execution (Step 4)
   const [jobId, setJobId] = useState<string | null>(null);
@@ -129,6 +130,7 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
         outputDir,
         downloadAssets,
         maxCharsPerFile: maxCharsPerFile ? parseInt(maxCharsPerFile, 10) : undefined,
+        languageMode,
       };
 
       const response = await fetch('/api/export/freshdesk/run', {
@@ -253,7 +255,7 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
     : `Export ${selectedCategoryIds.size} selected ${selectedCategoryIds.size === 1 ? 'category' : 'categories'} (${selectionTotals?.articles || 0} articles)`;
 
   // Step 3 summary
-  const step3Summary = `Output: ${outputDir}${downloadAssets ? ' • Download assets' : ''}${maxCharsPerFile ? ` • Split at ${maxCharsPerFile} chars` : ''}`;
+  const step3Summary = `Output: ${outputDir}${downloadAssets ? ' • Download assets' : ''}${maxCharsPerFile ? ` • Split at ${maxCharsPerFile} chars` : ''} • Language: ${languageMode === 'all' ? 'All' : 'English only'}`;
 
   return (
     <div className="space-y-6">
@@ -565,6 +567,39 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
               />
               <p className="mt-1 text-xs text-zinc-500">
                 Split large articles into multiple files (e.g., 50000)
+              </p>
+            </div>
+
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                Language Filter
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="all"
+                    checked={languageMode === 'all'}
+                    onChange={(e) => setLanguageMode(e.target.value as 'all' | 'en')}
+                    disabled={currentStep > 3}
+                    className="h-4 w-4 border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-zinc-900 dark:text-zinc-100">All languages</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="en"
+                    checked={languageMode === 'en'}
+                    onChange={(e) => setLanguageMode(e.target.value as 'all' | 'en')}
+                    disabled={currentStep > 3}
+                    className="h-4 w-4 border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  />
+                  <span className="ml-2 text-sm text-zinc-900 dark:text-zinc-100">English only</span>
+                </label>
+              </div>
+              <p className="mt-2 text-xs text-zinc-500">
+                Export published articles in all languages or English only (recommended: All)
               </p>
             </div>
 

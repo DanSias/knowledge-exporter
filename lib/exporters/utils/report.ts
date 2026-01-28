@@ -34,7 +34,10 @@ export interface ExportReport {
   options: {
     downloadAssets: boolean;
     maxCharsPerFile?: number;
+    languageMode?: 'all' | 'en';
   };
+
+  logs: string[];
 }
 
 /**
@@ -101,6 +104,15 @@ export async function writeSummaryMarkdown(
   // Add output directory
   content += `## Output Directory\n\n\`${path.resolve(outputDir)}\`\n`;
 
+  // Add logs section if any
+  if (report.logs && report.logs.length > 0) {
+    content += `\n## Export Logs\n\n\`\`\`\n`;
+    for (const log of report.logs) {
+      content += `${log}\n`;
+    }
+    content += `\`\`\`\n`;
+  }
+
   await writeFileIdempotent(summaryPath, content);
 }
 
@@ -109,7 +121,7 @@ export async function writeSummaryMarkdown(
  */
 export function createReport(
   outputDir: string,
-  options: { downloadAssets: boolean; maxCharsPerFile?: number }
+  options: { downloadAssets: boolean; maxCharsPerFile?: number; languageMode?: 'all' | 'en' }
 ): ExportReport {
   return {
     startTime: new Date().toISOString(),
@@ -127,6 +139,7 @@ export function createReport(
     },
     files: [],
     options,
+    logs: [],
   };
 }
 

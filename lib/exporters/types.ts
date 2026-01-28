@@ -43,6 +43,7 @@ export interface ExportOptions {
   outputDir: string;
   downloadAssets: boolean;
   maxCharsPerFile?: number;
+  languageMode?: 'all' | 'en'; // 'all' = all languages, 'en' = English only
 }
 
 /**
