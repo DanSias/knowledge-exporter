@@ -12,6 +12,14 @@ export interface ConfluenceExportJob {
   error?: string;
   createdAt: number;
   updatedAt: number;
+  phase?: string;
+  progress?: {
+    pagesProcessed: number;
+    pagesFailed: number;
+    filesCreated: number;
+    filesUpdated: number;
+    filesSkipped: number;
+  };
 }
 
 const jobs = new Map<string, ConfluenceExportJob>();
@@ -29,6 +37,14 @@ export function createJob(): string {
     report: null,
     createdAt: now,
     updatedAt: now,
+    phase: 'Starting export...',
+    progress: {
+      pagesProcessed: 0,
+      pagesFailed: 0,
+      filesCreated: 0,
+      filesUpdated: 0,
+      filesSkipped: 0,
+    },
   });
 
   return jobId;
@@ -65,6 +81,32 @@ export function updateJob(
   if (error) {
     job.error = error;
   }
+
+  jobs.set(jobId, job);
+}
+
+/**
+ * Update job progress (for live updates during export)
+ */
+export function updateJobProgress(
+  jobId: string,
+  phase: string,
+  progress: {
+    pagesProcessed: number;
+    pagesFailed: number;
+    filesCreated: number;
+    filesUpdated: number;
+    filesSkipped: number;
+  }
+): void {
+  const job = jobs.get(jobId);
+  if (!job) {
+    return; // Silently ignore missing jobs (they may have been cleaned up)
+  }
+
+  job.phase = phase;
+  job.progress = progress;
+  job.updatedAt = Date.now();
 
   jobs.set(jobId, job);
 }

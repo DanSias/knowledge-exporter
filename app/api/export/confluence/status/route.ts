@@ -27,6 +27,8 @@ export async function GET(request: Request) {
       error: job.error,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
+      phase: job.phase,
+      progress: job.progress,
     });
   } catch (error) {
     console.error('Failed to get job status:', error);

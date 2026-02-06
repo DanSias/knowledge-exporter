@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ConfluenceExporter } from '@/lib/exporters/confluence/exporter';
 import { ExportScope, ExportOptions } from '@/lib/exporters/types';
-import { createJob, updateJob, cleanupOldJobs } from '@/lib/jobs/confluenceJobStore';
+import { createJob, updateJob, updateJobProgress, cleanupOldJobs } from '@/lib/jobs/confluenceJobStore';
 
 /**
  * POST /api/export/confluence/run
@@ -17,7 +17,8 @@ export async function POST(request: Request) {
     };
 
     const options: ExportOptions = {
-      outputDir: body.outputDir || './exports/confluence-kb',
+      outputDir: body.outputDir || './exports', // Base directory (exporter adds provider/runName)
+      runName: body.runName, // Optional run name (auto-generated if not provided)
       downloadAssets: body.downloadAssets ?? false,
       maxCharsPerFile: body.maxCharsPerFile ? parseInt(body.maxCharsPerFile, 10) : undefined,
     };
@@ -30,6 +31,12 @@ export async function POST(request: Request) {
 
     // Run export in background (non-blocking)
     const exporter = new ConfluenceExporter();
+
+    // Set up progress callback
+    exporter.setProgressCallback((phase, progress) => {
+      updateJobProgress(jobId, phase, progress);
+    });
+
     exporter
       .run(scope, options)
       .then((report) => {
