@@ -11,6 +11,7 @@ import { htmlToMarkdown } from '../utils/htmlToMarkdown';
 import { ensureTitleHeading } from '../utils/ensureTitleHeading';
 import { writeFileIdempotent } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
+import { buildOutputPath } from '../utils/runName';
 import {
   createReport,
   finalizeReport,
@@ -20,11 +21,44 @@ import {
   FileResult,
 } from '../utils/report';
 
+export interface ProgressCallback {
+  (phase: string, progress: {
+    pagesProcessed: number;
+    pagesFailed: number;
+    filesCreated: number;
+    filesUpdated: number;
+    filesSkipped: number;
+  }): void;
+}
+
 export class ConfluenceExporter implements ExporterProvider {
   key = 'confluence';
+  private progressCallback?: ProgressCallback;
 
   async preview(): Promise<import('../types').PreviewResult> {
     throw new Error('Use preview route handler instead');
+  }
+
+  /**
+   * Set progress callback for live updates
+   */
+  setProgressCallback(callback: ProgressCallback): void {
+    this.progressCallback = callback;
+  }
+
+  /**
+   * Report progress to callback if set
+   */
+  private reportProgress(phase: string, report: ExportReport): void {
+    if (this.progressCallback) {
+      this.progressCallback(phase, {
+        pagesProcessed: report.counts.pagesProcessed || 0,
+        pagesFailed: report.counts.pagesFailed || 0,
+        filesCreated: report.counts.filesCreated,
+        filesUpdated: report.counts.filesUpdated,
+        filesSkipped: report.counts.filesSkipped,
+      });
+    }
   }
 
   /**
@@ -32,13 +66,18 @@ export class ConfluenceExporter implements ExporterProvider {
    */
   async run(scope: ExportScope, options: ExportOptions): Promise<ExportReport> {
     const startTimestamp = Date.now();
-    const report = createReport(options.outputDir, {
+
+    // Build the full output path with run name
+    const outputDir = buildOutputPath('./exports', 'confluence', options.runName);
+
+    const report = createReport(outputDir, {
       downloadAssets: options.downloadAssets,
       maxCharsPerFile: options.maxCharsPerFile,
     });
 
     try {
       // Fetch all spaces
+      this.reportProgress('Fetching spaces from Confluence...', report);
       const allSpaces = await listSpaces();
       report.logs.push(`Fetched ${allSpaces.length} total spaces from Confluence`);
 
@@ -48,6 +87,7 @@ export class ConfluenceExporter implements ExporterProvider {
         : allSpaces.filter((s) => scope.spaceIds?.includes(s.id.toString()));
 
       report.logs.push(`Exporting ${spacesToExport.length} spaces`);
+      this.reportProgress(`Exporting ${spacesToExport.length} spaces...`, report);
 
       // Track slugs to avoid collisions within each space
       const usedPageSlugsPerSpace = new Map<string, Set<string>>();
@@ -55,14 +95,16 @@ export class ConfluenceExporter implements ExporterProvider {
       // Process each space
       for (const space of spacesToExport) {
         report.logs.push(`Processing space: ${space.name} (${space.key})`);
+        this.reportProgress(`Processing space: ${space.name}`, report);
 
         const pageSlugsForSpace = new Set<string>();
         usedPageSlugsPerSpace.set(space.key, pageSlugsForSpace);
 
-        const spacePath = path.join(options.outputDir, 'kb', space.key);
+        const spacePath = path.join(outputDir, space.key);
 
         try {
           // Fetch pages in this space (type=page only, no blogs)
+          this.reportProgress(`Fetching pages from space: ${space.name}`, report);
           const pages = await listPagesInSpace(space.key);
           report.logs.push(`  Found ${pages.length} pages in space ${space.key}`);
 
@@ -127,10 +169,16 @@ export class ConfluenceExporter implements ExporterProvider {
               }
 
               report.counts.pagesProcessed = (report.counts.pagesProcessed || 0) + 1;
+
+              // Report progress after each page
+              this.reportProgress(`Processing pages in ${space.name}...`, report);
             } catch (pageError) {
               const errorMessage = pageError instanceof Error ? pageError.message : 'Unknown error';
               report.logs.push(`    ✗ Failed to process page ${page.id}: ${errorMessage}`);
               report.counts.pagesFailed = (report.counts.pagesFailed || 0) + 1;
+
+              // Report progress even on failure
+              this.reportProgress(`Processing pages in ${space.name}...`, report);
             }
           }
         } catch (spaceError) {
@@ -140,6 +188,7 @@ export class ConfluenceExporter implements ExporterProvider {
       }
 
       // Finalize report
+      this.reportProgress('Finalizing export...', report);
       finalizeReport(report, startTimestamp);
       report.logs.push(`Export completed in ${report.executionTime}s`);
       report.logs.push(`  Pages processed: ${report.counts.pagesProcessed}`);
@@ -148,9 +197,11 @@ export class ConfluenceExporter implements ExporterProvider {
       report.logs.push(`  Files skipped: ${report.counts.filesSkipped}`);
 
       // Write report files
+      this.reportProgress('Writing export report...', report);
       await writeReportJson(report);
       await writeSummaryMarkdown(report);
 
+      this.reportProgress('Export completed', report);
       return report;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

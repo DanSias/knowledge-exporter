@@ -42,6 +42,7 @@ export interface ExportScope {
 
 export interface ExportOptions {
   outputDir: string;
+  runName?: string; // Optional run name (auto-generated if not provided)
   downloadAssets: boolean;
   maxCharsPerFile?: number;
   languageMode?: 'all' | 'en'; // 'all' = all languages, 'en' = English only

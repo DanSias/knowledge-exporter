@@ -13,6 +13,7 @@ import { htmlToMarkdown } from '../utils/htmlToMarkdown';
 import { ensureTitleHeading } from '../utils/ensureTitleHeading';
 import { writeFileIdempotent } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
+import { buildOutputPath } from '../utils/runName';
 import {
   createReport,
   finalizeReport,
@@ -41,7 +42,11 @@ export class FreshdeskExporter implements ExporterProvider {
    */
   async run(scope: ExportScope, options: ExportOptions): Promise<ExportReport> {
     const startTimestamp = Date.now();
-    const report = createReport(options.outputDir, {
+
+    // Build the full output path with run name
+    const outputDir = buildOutputPath('./exports', 'freshdesk', options.runName);
+
+    const report = createReport(outputDir, {
       downloadAssets: options.downloadAssets,
       maxCharsPerFile: options.maxCharsPerFile,
       languageMode: options.languageMode || 'all',
@@ -78,7 +83,7 @@ export class FreshdeskExporter implements ExporterProvider {
         );
         usedCategorySlugs.add(categorySlug);
 
-        const categoryPath = path.join(options.outputDir, 'kb', categorySlug);
+        const categoryPath = path.join(outputDir, categorySlug);
 
         // Fetch folders in this category
         const folders = await listFolders(category.id);
