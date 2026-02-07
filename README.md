@@ -1,112 +1,166 @@
 # Knowledge Exporter
 
-Export support knowledge bases like Freshdesk Solutions to deterministic Markdown files.
+Export support and internal knowledge bases into clean, deterministic Markdown files for downstream use.
+
+Knowledge Exporter is a UI-first tool for extracting content from platforms like Freshdesk Solutions and Confluence, producing portable Markdown suitable for documentation systems, search, AI tooling, or version control.
+
+---
 
 ## What It Does
 
-Knowledge Exporter connects to support platforms (currently Freshdesk Solutions) and exports articles to clean, deterministic Markdown files. Perfect for:
-- Feeding into documentation systems
-- Training AI models
-- Version controlling your knowledge base
+Knowledge Exporter connects to supported knowledge platforms and exports content to a local folder as deterministic, idempotent Markdown.
+
+It is designed to sit upstream of tools like Verbatim, Google Drive, Git, or internal documentation systems.
+
+Typical use cases:
+
+- Preparing knowledge for AI / RAG systems
+- Auditing and pruning existing KB content
 - Migrating between platforms
+- Version-controlling knowledge bases
+- Reviewing what changed since the last export
 
-**What it does NOT do**: Ingestion, search, or indexing. Those are handled by downstream tools like Verbatim.
+What it intentionally does NOT do:
 
-## Quick Start
+- Ingestion, indexing, or search
+- AI summarization or rewriting
+- Cloud sync or automation
 
-```bash
-# 1. Install dependencies
-npm install
+Those are left to downstream tools.
 
-# 2. Configure environment
-cp .env.example .env.local
-# Edit .env.local with your credentials
-
-# 3. Start development server
-npm run dev
-
-# 4. Visit http://localhost:3000
-# Click "Start an Export" to begin
-```
-
-See [QUICK_START.md](./QUICK_START.md) for detailed setup instructions.
-
-## Features
-
-- ✅ **Deterministic output**: Consistent file paths (`kb/<category>/<folder>/<slug>.md`)
-- ✅ **Idempotent writes**: Skip unchanged files, update modified content
-- ✅ **Clean Markdown**: HTML converted with preserved structure
-- ✅ **Published content only**: Filters for published English articles
-- ✅ **File splitting**: Optional splitting for large articles
-- ✅ **Comprehensive reports**: JSON and Markdown summaries
+---
 
 ## Supported Providers
 
-- ✅ **Freshdesk Solutions** (v2 API)
-- 🔄 Zendesk, Intercom, and others planned
+- Freshdesk Solutions
+- Confluence Cloud
+- Zendesk, Intercom (planned)
 
-## Documentation
+---
 
-- [Quick Start Guide](./QUICK_START.md) - 30-second setup
-- [Export Implementation](./EXPORT_IMPLEMENTATION.md) - Complete technical documentation
-- [Manual Test Guide](./MANUAL_TEST_GUIDE.md) - Comprehensive testing procedures
-- [Phase 1 Summary](./PHASE1_SUMMARY.md) - Implementation overview
+## Key Features
 
-## Project Structure
+- Deterministic output  
+  Stable paths and filenames (e.g. `kb/<category>/<folder>/<slug>.md`)
 
-```
-knowledge-exporter/
-├── app/
-│   ├── api/export/freshdesk/      # API routes
-│   ├── components/                # Shared UI components
-│   └── pilot/export/              # Export wizard UI
-├── lib/
-│   └── exporters/
-│       ├── freshdesk/             # Freshdesk implementation
-│       └── utils/                 # Shared utilities
-└── exports/                       # Default output directory
-```
+- Idempotent exports  
+  Skip unchanged files, update modified content, clear reporting
 
-## Development
+- Markdown quality controls (opt-in)  
+  Include title as H1, normalize headings, collapse blank lines, strip empty sections
 
-```bash
-# Run tests
-npm test
+- Pre-export estimates  
+  Scope summary, expected file counts, truncation warnings
 
-# Build for production
-npm run build
+- Diff-aware results  
+  Review created, updated, skipped, and failed files per run
 
-# Start production server
-npm start
+- Local inventory explorer  
+  Browse exports, view Markdown, prune files before upload
 
-# Lint code
-npm run lint
-```
+- UI-first workflow  
+  No CLI required, guided export steps
+
+---
+
+## Quick Start
+
+1. Install dependencies  
+   `npm install`
+
+2. Configure environment  
+   `cp .env.example .env.local`  
+   Edit `.env.local` with your credentials
+
+3. Start the dev server  
+   `npm run dev`
+
+4. Open the app  
+   http://localhost:3000
+
+Choose a provider from the home page and follow the export steps.
+
+---
 
 ## Environment Variables
 
-Required:
-- `FRESHDESK_API_KEY` - Your Freshdesk API key
-- `FRESHDESK_HOST` - Your Freshdesk domain (e.g., `yourcompany.freshdesk.com`)
+Required (per provider):
+
+Freshdesk:
+
+- FRESHDESK_API_KEY
+- FRESHDESK_HOST (e.g. yourcompany.freshdesk.com)
+
+Confluence:
+
+- ATLASSIAN_API_KEY
+- ATLASSIAN_EMAIL
+- ATLASSIAN_SITE (e.g. https://yourcompany.atlassian.net)
 
 Optional:
-- `EXPORT_OUTPUT_DIR` - Default: `./exports/freshdesk-kb`
-- `EXPORT_DOWNLOAD_ASSETS` - Default: `false`
 
-See [.env.example](./.env.example) for details.
+- EXPORT_OUTPUT_DIR (default: ./exports/)
+- EXPORT_DOWNLOAD_ASSETS (default: false)
+
+See .env.example for full details.
+
+---
+
+## Output Structure
+
+Exports are written locally and ignored by git by default.
+
+exports/
+
+- freshdesk-kb/
+  - kb/
+    - category/
+      - folder/
+        - article.md
+- confluence-kb/
+  - kb/
+    - space/
+      - page.md
+- report.json
+- SUMMARY.md
+
+Each run produces:
+
+- report.json – machine-readable export details
+- SUMMARY.md – human-readable overview
+
+---
+
+## Development
+
+- Run tests: `npm test`
+- Build: `npm run build`
+- Start production server: `npm start`
+- Lint: `npm run lint`
+
+Tests focus on deterministic behavior and Markdown transformation utilities.
+
+---
 
 ## Built With
 
-- [Next.js 16](https://nextjs.org/) - React framework
-- [TypeScript](https://www.typescriptlang.org/) - Type safety
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-- [Turndown](https://github.com/mixmark-io/turndown) - HTML to Markdown conversion
-- [Vitest](https://vitest.dev/) - Testing
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+- Turndown (HTML to Markdown)
+- Vitest
+- Headless UI
+
+---
+
+## Project Status
+
+Phase 1 complete.
+
+Knowledge extraction, review, and quality control are fully implemented. Future phases may include saved export profiles and additional providers.
+
+---
 
 ## License
 
 Copyright © 2026. All rights reserved.
-
-## Contributing
-
-This is a private project. For issues or questions, please contact the development team.
