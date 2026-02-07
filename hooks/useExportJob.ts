@@ -39,10 +39,18 @@ export interface JobStatus {
       filesFailed?: number;
     };
     files?: Array<{
+      // Legacy fields
       path: string;
       status: string;
       error?: string;
       articleTitle?: string;
+      // Extended fields for diff & change awareness
+      pathRelative?: string;
+      pathAbsolute?: string;
+      bytes?: number;
+      hash?: string | null;
+      sourceId?: string | null;
+      updatedAt?: string | null;
     }>;
     logs?: string[];
   };

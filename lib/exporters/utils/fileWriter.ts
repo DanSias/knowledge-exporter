@@ -9,6 +9,8 @@ import { hashContent } from './hashing';
 export interface WriteResult {
   status: 'created' | 'updated' | 'skipped';
   path: string;
+  bytes: number;  // File size in bytes
+  hash: string;   // Content hash
 }
 
 /**
@@ -50,13 +52,21 @@ export async function writeFileIdempotent(
     }
   }
 
+  // Compute hash of new content
+  const newHash = hashContent(content);
+  const bytes = Buffer.byteLength(content, 'utf8');
+
   // If file exists, check if content changed
   if (existingContent !== null) {
     const existingHash = hashContent(existingContent);
-    const newHash = hashContent(content);
 
     if (existingHash === newHash) {
-      return { status: 'skipped', path: filePath };
+      return {
+        status: 'skipped',
+        path: filePath,
+        bytes,
+        hash: newHash,
+      };
     }
   }
 
@@ -66,6 +76,8 @@ export async function writeFileIdempotent(
   return {
     status: existingContent === null ? 'created' : 'updated',
     path: filePath,
+    bytes,
+    hash: newHash,
   };
 }
 

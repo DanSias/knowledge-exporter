@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/Card';
 import { Alert } from '@/app/components/Alert';
 import { StatsCards } from '@/app/components/export/StatsCards';
 import { ProgressBanner } from '@/app/components/export/ProgressBanner';
+import { ChangedFilesModal, type FileEntry } from '@/app/components/export/ChangedFilesModal';
 import { JobStatus } from '@/hooks/useExportJob';
 
 interface StepResultsProps {
@@ -10,6 +12,18 @@ interface StepResultsProps {
 }
 
 export function StepResults({ jobStatus, onRunAnother }: StepResultsProps) {
+  const [showChangedFilesModal, setShowChangedFilesModal] = useState(false);
+
+  // Transform report files to modal format
+  const modalFiles: FileEntry[] =
+    jobStatus?.report?.files?.map((f) => ({
+      pathRelative: f.pathRelative || f.path,
+      pathAbsolute: f.pathAbsolute || f.path,
+      status: f.status as 'created' | 'updated' | 'skipped' | 'failed',
+      bytes: f.bytes || 0,
+      hash: f.hash || null,
+      error: f.error || null,
+    })) || [];
   return (
     <Card>
       <CardHeader>
@@ -61,9 +75,17 @@ export function StepResults({ jobStatus, onRunAnother }: StepResultsProps) {
               </Alert>
 
               <div>
-                <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  Statistics
-                </h4>
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Statistics
+                  </h4>
+                  <button
+                    onClick={() => setShowChangedFilesModal(true)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                  >
+                    View changed files →
+                  </button>
+                </div>
                 <StatsCards
                   filesCreated={jobStatus.report.counts.filesCreated}
                   filesUpdated={jobStatus.report.counts.filesUpdated}
@@ -112,6 +134,14 @@ export function StepResults({ jobStatus, onRunAnother }: StepResultsProps) {
           )}
         </div>
       </CardContent>
+
+      {/* Changed Files Modal */}
+      <ChangedFilesModal
+        isOpen={showChangedFilesModal}
+        onClose={() => setShowChangedFilesModal(false)}
+        files={modalFiles}
+        title="Export File Changes"
+      />
     </Card>
   );
 }

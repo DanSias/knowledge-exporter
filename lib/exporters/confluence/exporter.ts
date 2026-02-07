@@ -70,7 +70,7 @@ export class ConfluenceExporter implements ExporterProvider {
     // Build the full output path with run name
     const outputDir = buildOutputPath('./exports', 'confluence', options.runName);
 
-    const report = createReport(outputDir, {
+    const report = createReport(outputDir, 'confluence', options.runName || null, {
       downloadAssets: options.downloadAssets,
       maxCharsPerFile: options.maxCharsPerFile,
     });
@@ -150,12 +150,22 @@ export class ConfluenceExporter implements ExporterProvider {
               // Write file(s)
               for (const part of markdownParts) {
                 const filePath = path.join(spacePath, part.fileName);
+                const pathRelative = path.relative(outputDir, filePath);
 
                 const result = await writeFileIdempotent(filePath, part.content);
 
                 const fileResult: FileResult = {
+                  // Legacy field
                   path: result.path,
+                  // Extended fields
+                  pathRelative,
+                  pathAbsolute: path.resolve(result.path),
                   status: result.status,
+                  bytes: result.bytes,
+                  hash: result.hash,
+                  sourceId: page.id,
+                  error: null,
+                  updatedAt: pageDetail.version?.when || null,
                 };
                 report.files.push(fileResult);
 
@@ -176,6 +186,26 @@ export class ConfluenceExporter implements ExporterProvider {
               const errorMessage = pageError instanceof Error ? pageError.message : 'Unknown error';
               report.logs.push(`    ✗ Failed to process page ${page.id}: ${errorMessage}`);
               report.counts.pagesFailed = (report.counts.pagesFailed || 0) + 1;
+
+              // Record failed file entry
+              const failedPath = path.join(spacePath, `${slugify(page.title || 'unknown')}--${page.id}.md`);
+              const pathRelative = path.relative(outputDir, failedPath);
+
+              const fileResult: FileResult = {
+                // Legacy field
+                path: failedPath,
+                // Extended fields
+                pathRelative,
+                pathAbsolute: path.resolve(failedPath),
+                status: 'failed',
+                bytes: 0,
+                hash: null,
+                sourceId: page.id,
+                error: errorMessage,
+                updatedAt: null,
+              };
+              report.files.push(fileResult);
+              report.counts.filesFailed++;
 
               // Report progress even on failure
               this.reportProgress(`Processing pages in ${space.name}...`, report);

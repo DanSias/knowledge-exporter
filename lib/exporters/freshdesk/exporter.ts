@@ -46,7 +46,7 @@ export class FreshdeskExporter implements ExporterProvider {
     // Build the full output path with run name
     const outputDir = buildOutputPath('./exports', 'freshdesk', options.runName);
 
-    const report = createReport(outputDir, {
+    const report = createReport(outputDir, 'freshdesk', options.runName || null, {
       downloadAssets: options.downloadAssets,
       maxCharsPerFile: options.maxCharsPerFile,
       languageMode: options.languageMode || 'all',
@@ -176,13 +176,24 @@ export class FreshdeskExporter implements ExporterProvider {
               // Write each part
               for (const part of parts) {
                 const filePath = path.join(folderPath, part.fileName);
+                const pathRelative = path.relative(outputDir, filePath);
 
                 try {
                   const result = await writeFileIdempotent(filePath, part.content);
 
                   const fileResult: FileResult = {
+                    // Legacy field
                     path: filePath,
+                    // Extended fields
+                    pathRelative,
+                    pathAbsolute: path.resolve(filePath),
                     status: result.status,
+                    bytes: result.bytes,
+                    hash: result.hash,
+                    sourceId: article.id.toString(),
+                    error: null,
+                    updatedAt: article.updated_at || null,
+                    // Legacy fields
                     articleId: article.id,
                     articleTitle: article.title,
                   };
@@ -197,27 +208,50 @@ export class FreshdeskExporter implements ExporterProvider {
                     report.counts.filesSkipped++;
                   }
                 } catch (error) {
+                  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                   const fileResult: FileResult = {
+                    // Legacy field
                     path: filePath,
+                    // Extended fields
+                    pathRelative,
+                    pathAbsolute: path.resolve(filePath),
                     status: 'failed',
-                    error: error instanceof Error ? error.message : 'Unknown error',
+                    bytes: 0,
+                    hash: null,
+                    sourceId: article.id.toString(),
+                    error: errorMessage,
+                    updatedAt: article.updated_at || null,
+                    // Legacy fields
                     articleId: article.id,
                     articleTitle: article.title,
                   };
 
                   report.files.push(fileResult);
-                  report.counts.filesFailed = (report.counts.filesFailed || 0) + 1;
-                  report.logs.push(`    Error writing file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  report.counts.filesFailed++;
+                  report.logs.push(`    Error writing file: ${errorMessage}`);
                 }
               }
 
               report.counts.articlesProcessed = (report.counts.articlesProcessed || 0) + 1;
             } catch (error) {
               // Article processing failed
+              const filePath = path.join(folderPath, `${slugify(article.title)}.md`);
+              const pathRelative = path.relative(outputDir, filePath);
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
               const fileResult: FileResult = {
-                path: path.join(folderPath, `${slugify(article.title)}.md`),
+                // Legacy field
+                path: filePath,
+                // Extended fields
+                pathRelative,
+                pathAbsolute: path.resolve(filePath),
                 status: 'failed',
-                error: error instanceof Error ? error.message : 'Unknown error',
+                bytes: 0,
+                hash: null,
+                sourceId: article.id.toString(),
+                error: errorMessage,
+                updatedAt: article.updated_at || null,
+                // Legacy fields
                 articleId: article.id,
                 articleTitle: article.title,
               };

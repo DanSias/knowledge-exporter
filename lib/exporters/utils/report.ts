@@ -6,9 +6,20 @@ import { writeFileIdempotent } from './fileWriter';
 import path from 'path';
 
 export interface FileResult {
+  // Legacy field (kept for backwards compat)
   path: string;
+
+  // Extended fields for diff & change awareness
+  pathRelative: string;      // Relative to outputDir
+  pathAbsolute: string;       // Full filesystem path
   status: 'created' | 'updated' | 'skipped' | 'failed';
-  error?: string;
+  bytes: number;              // File size in bytes
+  hash: string | null;        // Content hash (null if failed)
+  sourceId: string | null;    // Article/Page ID from source system
+  error: string | null;       // Error message if failed
+  updatedAt: string | null;   // ISO timestamp of last update (if available)
+
+  // Legacy provider-specific fields (deprecated, use sourceId)
   articleId?: number;
   articleTitle?: string;
 }
@@ -17,9 +28,13 @@ export interface ExportReport {
   startTime: string;
   endTime: string;
   duration: number; // milliseconds
+  durationMs: number; // Alias for duration (standardized field name)
   executionTime?: number; // seconds (for convenience)
   outputDir: string;
+  outputDirRelative: string | null; // Relative path if available
   status: 'running' | 'completed' | 'failed';
+  provider: 'freshdesk' | 'confluence'; // Provider identifier
+  runName: string | null; // Run name if provided
 
   counts: {
     categoriesProcessed?: number; // Freshdesk only
@@ -30,7 +45,8 @@ export interface ExportReport {
     filesCreated: number;
     filesUpdated: number;
     filesSkipped: number;
-    filesFailed?: number;
+    filesFailed: number;
+    totalFilesConsidered: number; // Total files in the export (all statuses)
   };
 
   files: FileResult[];
@@ -136,14 +152,20 @@ export async function writeSummaryMarkdown(report: ExportReport): Promise<void> 
  */
 export function createReport(
   outputDir: string,
+  provider: 'freshdesk' | 'confluence',
+  runName: string | null,
   options: { downloadAssets: boolean; maxCharsPerFile?: number; languageMode?: 'all' | 'en' }
 ): ExportReport {
   return {
     startTime: new Date().toISOString(),
     endTime: '',
     duration: 0,
+    durationMs: 0,
     outputDir,
+    outputDirRelative: null,
     status: 'running',
+    provider,
+    runName,
     counts: {
       categoriesProcessed: 0,
       foldersProcessed: 0,
@@ -154,6 +176,7 @@ export function createReport(
       filesUpdated: 0,
       filesSkipped: 0,
       filesFailed: 0,
+      totalFilesConsidered: 0,
     },
     files: [],
     options,
@@ -170,11 +193,20 @@ export function finalizeReport(
 ): ExportReport {
   const endTime = new Date();
   const durationMs = endTime.getTime() - startTimestamp;
+
+  // Compute totalFilesConsidered from files array
+  const totalFilesConsidered = report.files.length;
+
   return {
     ...report,
     endTime: endTime.toISOString(),
     duration: durationMs,
+    durationMs,
     executionTime: Math.round(durationMs / 1000),
     status: report.status === 'failed' ? 'failed' : 'completed',
+    counts: {
+      ...report.counts,
+      totalFilesConsidered,
+    },
   };
 }

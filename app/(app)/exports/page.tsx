@@ -6,6 +6,8 @@ import remarkGfm from 'remark-gfm';
 import { Popover, Dialog } from '@headlessui/react';
 import { Alert } from '@/app/components/Alert';
 import { Card } from '@/app/components/Card';
+import { ChangedFilesModal, type FileEntry } from '@/app/components/export/ChangedFilesModal';
+import { StatusBadge } from '@/app/components/export/StatusBadge';
 
 interface ExportRoot {
   name: string;
@@ -57,6 +59,11 @@ export default function ExportsInventoryPage() {
   const [fileContent, setFileContent] = useState<FileContent | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [showRawMarkdown, setShowRawMarkdown] = useState(false);
+
+  // Report data for Last Run Changes panel
+  const [reportData, setReportData] = useState<any | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [showChangedFilesModal, setShowChangedFilesModal] = useState(false);
 
   // Delete confirmation dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -123,12 +130,40 @@ export default function ExportsInventoryPage() {
       const data = await response.json();
       setFileTree(data.tree || []);
       setStats(data.stats || null);
+
+      // Also fetch report.json if it exists
+      if (data.stats?.hasReport) {
+        await fetchReport(rootName);
+      } else {
+        setReportData(null);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load file tree';
       setError(`Failed to load tree for ${rootName}: ${errorMessage}`);
       console.error('Error fetching tree:', err);
     } finally {
       setLoadingTree(false);
+    }
+  }
+
+  // Fetch report.json for Last Run Changes panel
+  async function fetchReport(rootName: string) {
+    setLoadingReport(true);
+    try {
+      const response = await fetch(
+        `/api/exports/file?root=${encodeURIComponent(rootName)}&path=report.json`
+      );
+      if (!response.ok) {
+        throw new Error('Failed to fetch report');
+      }
+      const data = await response.json();
+      const reportContent = JSON.parse(data.content);
+      setReportData(reportContent);
+    } catch (err) {
+      console.error('Failed to load report.json:', err);
+      setReportData(null);
+    } finally {
+      setLoadingReport(false);
     }
   }
 
@@ -469,6 +504,82 @@ export default function ExportsInventoryPage() {
                 )}
               </Popover>
             </div>
+
+            {/* Last Run Changes Panel */}
+            {reportData && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                    Last Run Changes
+                  </h3>
+                  <button
+                    onClick={() => setShowChangedFilesModal(true)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                  >
+                    View all →
+                  </button>
+                </div>
+                <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                  {/* Timestamp and counts */}
+                  <div className="mb-3 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+                    <span>
+                      {new Date(reportData.endTime).toLocaleString()}
+                    </span>
+                    <span className="capitalize">{reportData.provider} export</span>
+                  </div>
+                  <div className="mb-3 grid grid-cols-4 gap-2">
+                    <div className="text-center">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">Created</div>
+                      <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                        {reportData.counts.filesCreated}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">Updated</div>
+                      <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {reportData.counts.filesUpdated}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">Skipped</div>
+                      <div className="text-lg font-bold text-zinc-600 dark:text-zinc-400">
+                        {reportData.counts.filesSkipped}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">Failed</div>
+                      <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                        {reportData.counts.filesFailed || 0}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Top 10 changed files preview */}
+                  {reportData.files && reportData.files.length > 0 && (
+                    <div>
+                      <div className="mb-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                        Recent changes (top 10)
+                      </div>
+                      <div className="space-y-1">
+                        {reportData.files
+                          .filter((f: any) => f.status === 'created' || f.status === 'updated')
+                          .slice(0, 10)
+                          .map((file: any, idx: number) => (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 text-xs"
+                            >
+                              <StatusBadge status={file.status} size="sm" />
+                              <span className="flex-1 truncate font-mono text-zinc-600 dark:text-zinc-400">
+                                {file.pathRelative || file.path}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           // Loading state
@@ -690,6 +801,25 @@ export default function ExportsInventoryPage() {
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* Changed Files Modal */}
+      {reportData && (
+        <ChangedFilesModal
+          isOpen={showChangedFilesModal}
+          onClose={() => setShowChangedFilesModal(false)}
+          files={
+            reportData.files?.map((f: any) => ({
+              pathRelative: f.pathRelative || f.path,
+              pathAbsolute: f.pathAbsolute || f.path,
+              status: f.status,
+              bytes: f.bytes || 0,
+              hash: f.hash || null,
+              error: f.error || null,
+            })) || []
+          }
+          title={`${selectedRoot} - Export File Changes`}
+        />
+      )}
     </div>
   );
 }
