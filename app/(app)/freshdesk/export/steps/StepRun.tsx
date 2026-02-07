@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/Card';
 import { Alert } from '@/app/components/Alert';
+import { ExportEstimate, type ExportEstimateData } from '@/app/components/export/ExportEstimate';
 import { JobStatus } from '@/hooks/useExportJob';
 import { PreviewResult } from '@/lib/exporters/types';
 
@@ -18,6 +20,7 @@ interface StepRunProps {
   downloadAssets: boolean;
   maxCharsPerFile: string;
   outputDir: string;
+  runName: string;
   onStartExport: () => void;
 }
 
@@ -32,8 +35,66 @@ export function StepRun({
   downloadAssets,
   maxCharsPerFile,
   outputDir,
+  runName,
   onStartExport,
 }: StepRunProps) {
+  const [estimate, setEstimate] = useState<ExportEstimateData | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  const [estimateError, setEstimateError] = useState<string | null>(null);
+
+  // Fetch estimate when scope or options change
+  useEffect(() => {
+    if (jobStatus) return; // Don't fetch if job is running
+
+    async function fetchEstimate() {
+      setEstimateLoading(true);
+      setEstimateError(null);
+
+      try {
+        const scope = {
+          exportAll,
+          categoryIds: exportAll ? [] : Array.from(selectedCategoryIds),
+        };
+
+        const options = {
+          outputDir,
+          runName: runName || undefined,
+          downloadAssets,
+          maxCharsPerFile: maxCharsPerFile ? parseInt(maxCharsPerFile, 10) : undefined,
+          languageMode,
+        };
+
+        const response = await fetch('/api/export/freshdesk/estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scope, options }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch estimate');
+        }
+
+        const data = await response.json();
+        setEstimate(data);
+      } catch (err) {
+        setEstimateError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setEstimateLoading(false);
+      }
+    }
+
+    fetchEstimate();
+  }, [
+    exportAll,
+    selectedCategoryIds,
+    languageMode,
+    downloadAssets,
+    maxCharsPerFile,
+    outputDir,
+    runName,
+    jobStatus,
+  ]);
+
   return (
     <Card>
       <CardHeader>
@@ -95,6 +156,13 @@ export function StepRun({
                   </div>
                 </dl>
               </div>
+
+              {/* Export Estimate */}
+              <ExportEstimate
+                estimate={estimate}
+                loading={estimateLoading}
+                error={estimateError}
+              />
 
               <button
                 onClick={onStartExport}

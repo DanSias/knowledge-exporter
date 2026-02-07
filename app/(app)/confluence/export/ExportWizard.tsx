@@ -335,6 +335,7 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
               downloadAssets={downloadAssets}
               maxCharsPerFile={maxCharsPerFile}
               outputDir={outputDir}
+              runName={runName}
               onStartExport={handleStartExport}
             />
           </Tab.Panel>

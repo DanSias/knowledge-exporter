@@ -311,6 +311,7 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
               downloadAssets={downloadAssets}
               maxCharsPerFile={maxCharsPerFile}
               outputDir={outputDir}
+              runName={runName}
               onStartExport={handleStartExport}
             />
           </Tab.Panel>
