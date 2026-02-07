@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Tab } from '@headlessui/react';
 import { Alert } from '@/app/components/Alert';
-import { PreviewResult } from '@/lib/exporters/types';
 import { useExportJob } from '@/hooks/useExportJob';
 import { StepConfigure } from './steps/StepConfigure';
 import { StepScope } from './steps/StepScope';
@@ -11,14 +10,35 @@ import { StepOptions } from './steps/StepOptions';
 import { StepRun } from './steps/StepRun';
 import { StepResults } from './steps/StepResults';
 
-interface ExportWizardProps {
-  hasApiKey: boolean;
-  hasHost: boolean;
-  baseUrl: string | null;
+interface Space {
+  id: string;
+  key: string;
+  name: string;
+  type: string;
+  status: string;
 }
 
-export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps) {
-  const isConfigured = hasApiKey && hasHost;
+interface PreviewResult {
+  site: string;
+  spaces: Space[];
+  totals: {
+    spaceCount: number;
+  };
+}
+
+interface SpaceCounts {
+  [spaceKey: string]: number;
+}
+
+interface ExportWizardProps {
+  hasSite: boolean;
+  hasEmail: boolean;
+  hasApiToken: boolean;
+  siteUrl: string | null;
+}
+
+export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: ExportWizardProps) {
+  const isConfigured = hasSite && hasEmail && hasApiToken;
 
   // State for step progression
   const [currentStep, setCurrentStep] = useState<number>(isConfigured ? 2 : 1);
@@ -28,9 +48,15 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
+  // State for space page counts
+  const [spaceCounts, setSpaceCounts] = useState<SpaceCounts>({});
+  const [countsLoading, setCountsLoading] = useState(false);
+
   // State for scope selection (Step 2)
   const [exportAll, setExportAll] = useState(true);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(new Set());
+  const [selectedSpaceIds, setSelectedSpaceIds] = useState<Set<string>>(new Set());
+  const [showPersonalSpaces, setShowPersonalSpaces] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // State for navigation blocking
   const [navigationBlockMessage, setNavigationBlockMessage] = useState<string | null>(null);
@@ -40,10 +66,9 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
   const [runName, setRunName] = useState('');
   const [downloadAssets, setDownloadAssets] = useState(false);
   const [maxCharsPerFile, setMaxCharsPerFile] = useState('');
-  const [languageMode, setLanguageMode] = useState<'all' | 'en'>('all');
 
   // Job management
-  const { jobStatus, startJob } = useExportJob('freshdesk');
+  const { jobStatus, startJob, resetJob } = useExportJob('confluence');
 
   // Fetch preview when moving to step 2
   useEffect(() => {
@@ -64,7 +89,7 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
     setPreviewError(null);
 
     try {
-      const response = await fetch('/api/export/freshdesk/preview');
+      const response = await fetch('/api/confluence/preview');
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -73,6 +98,11 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
 
       const data: PreviewResult = await response.json();
       setPreviewData(data);
+
+      // Fetch page counts for all spaces
+      if (data.spaces.length > 0) {
+        fetchSpaceCounts(data.spaces.map((s) => s.key));
+      }
     } catch (error) {
       console.error('Preview fetch error:', error);
       setPreviewError(error instanceof Error ? error.message : 'Unknown error occurred');
@@ -81,11 +111,34 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
     }
   };
 
+  const fetchSpaceCounts = async (spaceKeys: string[]) => {
+    setCountsLoading(true);
+
+    try {
+      const response = await fetch('/api/confluence/space-counts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spaceKeys }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch space counts');
+      }
+
+      const data = await response.json();
+      setSpaceCounts(data.counts || {});
+    } catch (error) {
+      console.error('Space counts fetch error:', error);
+    } finally {
+      setCountsLoading(false);
+    }
+  };
+
   const handleStartExport = async () => {
     try {
       const scope = {
         exportAll,
-        categoryIds: exportAll ? undefined : Array.from(selectedCategoryIds),
+        spaceIds: exportAll ? [] : Array.from(selectedSpaceIds),
       };
 
       const options = {
@@ -93,7 +146,6 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
         runName: runName || undefined,
         downloadAssets,
         maxCharsPerFile: maxCharsPerFile ? parseInt(maxCharsPerFile, 10) : undefined,
-        languageMode,
       };
 
       await startJob(scope, options);
@@ -104,53 +156,56 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
     }
   };
 
-  const toggleCategory = (categoryId: number) => {
-    const newSet = new Set(selectedCategoryIds);
-    if (newSet.has(categoryId)) {
-      newSet.delete(categoryId);
+  const handleRunAnother = () => {
+    setCurrentStep(2);
+    resetJob();
+  };
+
+  const toggleSpace = (spaceId: string) => {
+    const newSet = new Set(selectedSpaceIds);
+    if (newSet.has(spaceId)) {
+      newSet.delete(spaceId);
     } else {
-      newSet.add(categoryId);
+      newSet.add(spaceId);
     }
-    setSelectedCategoryIds(newSet);
+    setSelectedSpaceIds(newSet);
   };
 
   const toggleSelectAll = () => {
-    if (!previewData) return;
+    if (!filteredSpaces) return;
 
-    if (selectedCategoryIds.size === previewData.categories.length) {
-      setSelectedCategoryIds(new Set());
+    if (selectedSpaceIds.size === filteredSpaces.length) {
+      setSelectedSpaceIds(new Set());
     } else {
-      setSelectedCategoryIds(new Set(previewData.categories.map((c) => c.id)));
+      setSelectedSpaceIds(new Set(filteredSpaces.map((s) => s.id)));
     }
   };
 
-  // Compute selection totals
-  const selectionTotals = useMemo(() => {
-    if (!previewData || exportAll) {
-      return null;
-    }
-
-    const selectedCategories = previewData.categories.filter((c) =>
-      selectedCategoryIds.has(c.id)
+  // Filter spaces based on personal spaces toggle and search query
+  const filteredSpaces = useMemo(() => {
+    return (
+      previewData?.spaces.filter((space) => {
+        // Filter by personal spaces toggle
+        if (!showPersonalSpaces && space.type === 'personal') {
+          return false;
+        }
+        // Filter by search query
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          return (
+            space.name.toLowerCase().includes(query) || space.key.toLowerCase().includes(query)
+          );
+        }
+        return true;
+      }) || []
     );
-
-    return {
-      folders: selectedCategories.reduce((sum, c) => sum + c.folderCount, 0),
-      articles: selectedCategories.reduce((sum, c) => sum + c.articleCount, 0),
-      englishPublished: selectedCategories.reduce(
-        (sum, c) => sum + c.englishPublishedArticleCount,
-        0
-      ),
-    };
-  }, [previewData, selectedCategoryIds, exportAll]);
+  }, [previewData, showPersonalSpaces, searchQuery]);
 
   // Check if a step's prerequisites are met
   const isStep1Complete = isConfigured;
-  const isStep2Complete = exportAll || selectedCategoryIds.size > 0;
+  const isStep2Complete = exportAll || selectedSpaceIds.size > 0;
   const isStep3Complete =
-    outputDir.trim() !== '' &&
-    (maxCharsPerFile === '' || parseInt(maxCharsPerFile, 10) > 0) &&
-    (languageMode === 'all' || languageMode === 'en');
+    outputDir.trim() !== '' && (maxCharsPerFile === '' || parseInt(maxCharsPerFile, 10) > 0);
   const isStep4Complete = jobStatus?.status === 'completed' || jobStatus?.status === 'failed';
 
   // Determine which steps are unlocked
@@ -259,25 +314,32 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
         <Tab.Panels className="mt-6">
           <Tab.Panel>
             <StepConfigure
-              hasApiKey={hasApiKey}
-              hasHost={hasHost}
-              baseUrl={baseUrl}
+              hasSite={hasSite}
+              hasEmail={hasEmail}
+              hasApiToken={hasApiToken}
+              siteUrl={siteUrl}
               isConfigured={isConfigured}
               onContinue={() => setCurrentStep(2)}
             />
           </Tab.Panel>
 
-          <Tab.Panel>
+          <Tab.Panel className="flex h-full flex-col">
             <StepScope
               previewData={previewData}
               previewLoading={previewLoading}
               previewError={previewError}
               exportAll={exportAll}
-              selectedCategoryIds={selectedCategoryIds}
-              selectionTotals={selectionTotals}
+              selectedSpaceIds={selectedSpaceIds}
+              showPersonalSpaces={showPersonalSpaces}
+              searchQuery={searchQuery}
+              spaceCounts={spaceCounts}
+              countsLoading={countsLoading}
+              filteredSpaces={filteredSpaces}
               setExportAll={setExportAll}
-              toggleCategory={toggleCategory}
+              toggleSpace={toggleSpace}
               toggleSelectAll={toggleSelectAll}
+              setShowPersonalSpaces={setShowPersonalSpaces}
+              setSearchQuery={setSearchQuery}
               onContinue={() => setCurrentStep(3)}
               fetchPreview={fetchPreview}
             />
@@ -293,8 +355,6 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
               setDownloadAssets={setDownloadAssets}
               maxCharsPerFile={maxCharsPerFile}
               setMaxCharsPerFile={setMaxCharsPerFile}
-              languageMode={languageMode}
-              setLanguageMode={setLanguageMode}
               onContinue={() => setCurrentStep(4)}
             />
           </Tab.Panel>
@@ -302,12 +362,10 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
           <Tab.Panel>
             <StepRun
               jobStatus={jobStatus}
-              baseUrl={baseUrl}
+              siteUrl={siteUrl}
               exportAll={exportAll}
-              selectedCategoryIds={selectedCategoryIds}
+              selectedSpaceIds={selectedSpaceIds}
               previewData={previewData}
-              selectionTotals={selectionTotals}
-              languageMode={languageMode}
               downloadAssets={downloadAssets}
               maxCharsPerFile={maxCharsPerFile}
               outputDir={outputDir}
@@ -316,7 +374,7 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
           </Tab.Panel>
 
           <Tab.Panel>
-            <StepResults jobStatus={jobStatus} />
+            <StepResults jobStatus={jobStatus} onRunAnother={handleRunAnother} />
           </Tab.Panel>
         </Tab.Panels>
       </Tab.Group>

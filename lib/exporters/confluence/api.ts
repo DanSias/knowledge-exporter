@@ -40,22 +40,19 @@ export async function listSpaces(): Promise<ConfluenceSpace[]> {
 }
 
 /**
- * Get approximate page count for a space
- * This is a simple approach - just fetch first page and check total
- * Full implementation would require paginating through all pages
+ * Get page count for a space
+ * Uses REST API v1 content search with limit=0 to get total count efficiently
  */
-export async function getSpacePageCount(spaceId: string): Promise<number> {
+export async function getSpacePageCount(spaceKey: string): Promise<number> {
   try {
-    const response = await confluenceFetch<{ results: unknown[]; _links: { next?: string } }>(
-      `/api/v2/spaces/${spaceId}/pages?limit=1`
+    const response = await confluenceFetch<PageListResponse>(
+      `/rest/api/content?type=page&spaceKey=${spaceKey}&limit=0`
     );
 
-    // For now, we'll just return a placeholder
-    // A full implementation would need to paginate to count all pages
-    // or use a search API endpoint that returns total count
-    return response.results.length > 0 ? 1 : 0;
+    // The size property contains the total number of pages
+    return response.size || 0;
   } catch (error) {
-    console.error(`Failed to get page count for space ${spaceId}:`, error);
+    console.error(`Failed to get page count for space ${spaceKey}:`, error);
     return 0;
   }
 }

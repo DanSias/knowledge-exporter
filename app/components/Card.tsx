@@ -34,8 +34,9 @@ export function CardTitle({ children, className = '' }: CardTitleProps) {
 
 interface CardContentProps {
   children: React.ReactNode;
+  className?: string;
 }
 
-export function CardContent({ children }: CardContentProps) {
-  return <div className="space-y-4">{children}</div>;
+export function CardContent({ children, className = '' }: CardContentProps) {
+  return <div className={`space-y-4 ${className}`}>{children}</div>;
 }
