@@ -19,6 +19,9 @@ export interface FileResult {
   error: string | null;       // Error message if failed
   updatedAt: string | null;   // ISO timestamp of last update (if available)
 
+  // Markdown quality transformation notes
+  markdownNotes?: string[];   // Notes about applied transformations
+
   // Legacy provider-specific fields (deprecated, use sourceId)
   articleId?: number;
   articleTitle?: string;
@@ -55,6 +58,14 @@ export interface ExportReport {
     downloadAssets: boolean;
     maxCharsPerFile?: number;
     languageMode?: 'all' | 'en';
+  };
+
+  // Markdown quality options used for this run
+  markdownOptions?: {
+    includeTitleAsH1: boolean;
+    normalizeHeadings: boolean;
+    collapseBlankLines: boolean;
+    stripEmptySections: boolean;
   };
 
   logs: string[];
@@ -154,7 +165,15 @@ export function createReport(
   outputDir: string,
   provider: 'freshdesk' | 'confluence',
   runName: string | null,
-  options: { downloadAssets: boolean; maxCharsPerFile?: number; languageMode?: 'all' | 'en' }
+  options: {
+    downloadAssets: boolean;
+    maxCharsPerFile?: number;
+    languageMode?: 'all' | 'en';
+    includeTitleAsH1?: boolean;
+    normalizeHeadings?: boolean;
+    collapseBlankLines?: boolean;
+    stripEmptySections?: boolean;
+  }
 ): ExportReport {
   return {
     startTime: new Date().toISOString(),
@@ -179,7 +198,17 @@ export function createReport(
       totalFilesConsidered: 0,
     },
     files: [],
-    options,
+    options: {
+      downloadAssets: options.downloadAssets,
+      maxCharsPerFile: options.maxCharsPerFile,
+      languageMode: options.languageMode,
+    },
+    markdownOptions: {
+      includeTitleAsH1: options.includeTitleAsH1 || false,
+      normalizeHeadings: options.normalizeHeadings || false,
+      collapseBlankLines: options.collapseBlankLines !== false, // Default: true
+      stripEmptySections: options.stripEmptySections || false,
+    },
     logs: [],
   };
 }

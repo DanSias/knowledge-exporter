@@ -46,6 +46,12 @@ export interface ExportOptions {
   downloadAssets: boolean;
   maxCharsPerFile?: number;
   languageMode?: 'all' | 'en'; // 'all' = all languages, 'en' = English only
+
+  // Markdown quality controls (opt-in)
+  includeTitleAsH1?: boolean; // Prepend title as H1 if not present (default: false)
+  normalizeHeadings?: boolean; // Ensure first heading is H1, normalize hierarchy (default: false)
+  collapseBlankLines?: boolean; // Reduce multiple blank lines to max 2 (default: true)
+  stripEmptySections?: boolean; // Remove headings with no content (default: false)
 }
 
 /**

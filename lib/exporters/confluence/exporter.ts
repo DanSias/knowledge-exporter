@@ -8,10 +8,10 @@ import { listSpaces, listPagesInSpace, getPage } from './api';
 import { ConfluenceSpace, ConfluencePage, ConfluencePageWithBody } from './types';
 import { slugify, makeUniqueSlug } from '../utils/slugify';
 import { htmlToMarkdown } from '../utils/htmlToMarkdown';
-import { ensureTitleHeading } from '../utils/ensureTitleHeading';
 import { writeFileIdempotent } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
 import { buildOutputPath } from '../utils/runName';
+import { applyMarkdownQuality, type MarkdownQualityOptions } from '../../markdown';
 import {
   createReport,
   finalizeReport,
@@ -131,8 +131,19 @@ export class ConfluenceExporter implements ExporterProvider {
               // Convert storage format to Markdown
               let markdown = htmlToMarkdown(htmlBody);
 
-              // Ensure H1 title heading
-              markdown = ensureTitleHeading(pageTitle, markdown);
+              // Apply markdown quality controls
+              const qualityOptions: MarkdownQualityOptions = {
+                includeTitleAsH1: options.includeTitleAsH1 || false,
+                normalizeHeadings: options.normalizeHeadings || false,
+                collapseBlankLines: options.collapseBlankLines !== false, // Default: true
+                stripEmptySections: options.stripEmptySections || false,
+              };
+
+              const { content: processedMarkdown, notes: markdownNotes } = applyMarkdownQuality(
+                markdown,
+                pageTitle,
+                qualityOptions
+              );
 
               // Generate slug from title, include pageId for uniqueness
               const baseSlug = slugify(pageTitle);
@@ -141,10 +152,10 @@ export class ConfluenceExporter implements ExporterProvider {
               // Apply file splitting if configured
               let markdownParts: Array<{ content: string; fileName: string }>;
               if (options.maxCharsPerFile && options.maxCharsPerFile > 0) {
-                const parts = splitMarkdown(markdown, baseFilename, options.maxCharsPerFile);
+                const parts = splitMarkdown(processedMarkdown, baseFilename, options.maxCharsPerFile);
                 markdownParts = parts.map(part => ({ content: part.content, fileName: part.fileName }));
               } else {
-                markdownParts = [{ content: markdown, fileName: baseFilename }];
+                markdownParts = [{ content: processedMarkdown, fileName: baseFilename }];
               }
 
               // Write file(s)
@@ -166,6 +177,7 @@ export class ConfluenceExporter implements ExporterProvider {
                   sourceId: page.id,
                   error: null,
                   updatedAt: pageDetail.version?.when || null,
+                  markdownNotes: markdownNotes.length > 0 ? markdownNotes : undefined,
                 };
                 report.files.push(fileResult);
 

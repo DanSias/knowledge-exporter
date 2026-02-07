@@ -42,6 +42,12 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
   const [maxCharsPerFile, setMaxCharsPerFile] = useState('');
   const [languageMode, setLanguageMode] = useState<'all' | 'en'>('all');
 
+  // Markdown quality options (Step 3)
+  const [includeTitleAsH1, setIncludeTitleAsH1] = useState(false);
+  const [normalizeHeadings, setNormalizeHeadings] = useState(false);
+  const [collapseBlankLines, setCollapseBlankLines] = useState(true); // Default: ON
+  const [stripEmptySections, setStripEmptySections] = useState(false);
+
   // Job management
   const { jobStatus, startJob } = useExportJob('freshdesk');
 
@@ -94,6 +100,10 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
         downloadAssets,
         maxCharsPerFile: maxCharsPerFile ? parseInt(maxCharsPerFile, 10) : undefined,
         languageMode,
+        includeTitleAsH1,
+        normalizeHeadings,
+        collapseBlankLines,
+        stripEmptySections,
       };
 
       await startJob(scope, options);
@@ -295,6 +305,14 @@ export function ExportWizard({ hasApiKey, hasHost, baseUrl }: ExportWizardProps)
               setMaxCharsPerFile={setMaxCharsPerFile}
               languageMode={languageMode}
               setLanguageMode={setLanguageMode}
+              includeTitleAsH1={includeTitleAsH1}
+              setIncludeTitleAsH1={setIncludeTitleAsH1}
+              normalizeHeadings={normalizeHeadings}
+              setNormalizeHeadings={setNormalizeHeadings}
+              collapseBlankLines={collapseBlankLines}
+              setCollapseBlankLines={setCollapseBlankLines}
+              stripEmptySections={stripEmptySections}
+              setStripEmptySections={setStripEmptySections}
               onContinue={() => setCurrentStep(4)}
             />
           </Tab.Panel>

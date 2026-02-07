@@ -12,6 +12,14 @@ interface StepOptionsProps {
   setMaxCharsPerFile: (value: string) => void;
   languageMode: 'all' | 'en';
   setLanguageMode: (value: 'all' | 'en') => void;
+  includeTitleAsH1: boolean;
+  setIncludeTitleAsH1: (value: boolean) => void;
+  normalizeHeadings: boolean;
+  setNormalizeHeadings: (value: boolean) => void;
+  collapseBlankLines: boolean;
+  setCollapseBlankLines: (value: boolean) => void;
+  stripEmptySections: boolean;
+  setStripEmptySections: (value: boolean) => void;
   onContinue: () => void;
 }
 
@@ -26,6 +34,14 @@ export function StepOptions({
   setMaxCharsPerFile,
   languageMode,
   setLanguageMode,
+  includeTitleAsH1,
+  setIncludeTitleAsH1,
+  normalizeHeadings,
+  setNormalizeHeadings,
+  collapseBlankLines,
+  setCollapseBlankLines,
+  stripEmptySections,
+  setStripEmptySections,
   onContinue,
 }: StepOptionsProps) {
   return (
@@ -123,6 +139,88 @@ export function StepOptions({
             </div>
             <p className="mt-2 text-xs text-zinc-500">
               Export published articles in all languages or English only (recommended: All)
+            </p>
+          </div>
+
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+            <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Markdown Quality
+            </label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label htmlFor="includeTitleAsH1" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    Include title as H1
+                  </label>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    Prepend article title as H1 if not already present
+                  </p>
+                </div>
+                <input
+                  id="includeTitleAsH1"
+                  type="checkbox"
+                  checked={includeTitleAsH1}
+                  onChange={(e) => setIncludeTitleAsH1(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <label htmlFor="normalizeHeadings" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    Normalize heading levels
+                  </label>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    Ensure first heading is H1 and normalize hierarchy
+                  </p>
+                </div>
+                <input
+                  id="normalizeHeadings"
+                  type="checkbox"
+                  checked={normalizeHeadings}
+                  onChange={(e) => setNormalizeHeadings(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <label htmlFor="collapseBlankLines" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    Collapse excessive blank lines
+                  </label>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    Reduce multiple blank lines to maximum of 2
+                  </p>
+                </div>
+                <input
+                  id="collapseBlankLines"
+                  type="checkbox"
+                  checked={collapseBlankLines}
+                  onChange={(e) => setCollapseBlankLines(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <label htmlFor="stripEmptySections" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    Strip empty sections
+                  </label>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                    Remove headings with no content beneath them
+                  </p>
+                </div>
+                <input
+                  id="stripEmptySections"
+                  type="checkbox"
+                  checked={stripEmptySections}
+                  onChange={(e) => setStripEmptySections(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-zinc-500">
+              Applied after HTML→Markdown conversion. Recommended: Collapse blank lines (ON).
             </p>
           </div>
 

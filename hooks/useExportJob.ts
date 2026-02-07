@@ -53,6 +53,12 @@ export interface JobStatus {
       updatedAt?: string | null;
     }>;
     logs?: string[];
+    markdownOptions?: {
+      includeTitleAsH1: boolean;
+      normalizeHeadings: boolean;
+      collapseBlankLines: boolean;
+      stripEmptySections: boolean;
+    };
   };
 }
 
@@ -68,6 +74,10 @@ export interface ExportOptions {
   downloadAssets?: boolean;
   maxCharsPerFile?: number;
   languageMode?: 'all' | 'en';
+  includeTitleAsH1?: boolean;
+  normalizeHeadings?: boolean;
+  collapseBlankLines?: boolean;
+  stripEmptySections?: boolean;
 }
 
 export function useExportJob(provider: 'freshdesk' | 'confluence') {

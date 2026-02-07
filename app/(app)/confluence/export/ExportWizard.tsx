@@ -62,6 +62,12 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
   const [downloadAssets, setDownloadAssets] = useState(false);
   const [maxCharsPerFile, setMaxCharsPerFile] = useState('');
 
+  // Markdown quality options (Step 3)
+  const [includeTitleAsH1, setIncludeTitleAsH1] = useState(false);
+  const [normalizeHeadings, setNormalizeHeadings] = useState(false);
+  const [collapseBlankLines, setCollapseBlankLines] = useState(true); // Default: ON
+  const [stripEmptySections, setStripEmptySections] = useState(false);
+
   // Job management
   const { jobStatus, startJob, resetJob } = useExportJob('confluence');
 
@@ -114,6 +120,10 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
         runName: runName || undefined,
         downloadAssets,
         maxCharsPerFile: maxCharsPerFile ? parseInt(maxCharsPerFile, 10) : undefined,
+        includeTitleAsH1,
+        normalizeHeadings,
+        collapseBlankLines,
+        stripEmptySections,
       };
 
       await startJob(scope, options);
@@ -321,6 +331,14 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
               setDownloadAssets={setDownloadAssets}
               maxCharsPerFile={maxCharsPerFile}
               setMaxCharsPerFile={setMaxCharsPerFile}
+              includeTitleAsH1={includeTitleAsH1}
+              setIncludeTitleAsH1={setIncludeTitleAsH1}
+              normalizeHeadings={normalizeHeadings}
+              setNormalizeHeadings={setNormalizeHeadings}
+              collapseBlankLines={collapseBlankLines}
+              setCollapseBlankLines={setCollapseBlankLines}
+              stripEmptySections={stripEmptySections}
+              setStripEmptySections={setStripEmptySections}
               onContinue={() => setCurrentStep(4)}
             />
           </Tab.Panel>

@@ -108,6 +108,42 @@ export function StepResults({ jobStatus, onRunAnother }: StepResultsProps) {
                 </p>
               </div>
 
+              {jobStatus.report.markdownOptions && (
+                <div>
+                  <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Markdown Quality Controls
+                  </h4>
+                  <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-600 dark:text-zinc-400">Include title as H1:</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {jobStatus.report.markdownOptions.includeTitleAsH1 ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-600 dark:text-zinc-400">Normalize headings:</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {jobStatus.report.markdownOptions.normalizeHeadings ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-600 dark:text-zinc-400">Collapse blank lines:</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {jobStatus.report.markdownOptions.collapseBlankLines ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-zinc-600 dark:text-zinc-400">Strip empty sections:</span>
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                          {jobStatus.report.markdownOptions.stripEmptySections ? 'ON' : 'OFF'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Logs */}
               {jobStatus.report.logs && jobStatus.report.logs.length > 0 && (
                 <details className="rounded-md border border-zinc-200 dark:border-zinc-800">

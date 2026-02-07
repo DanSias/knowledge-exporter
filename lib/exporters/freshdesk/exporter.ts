@@ -10,10 +10,10 @@ import { isPublished, isEnglish } from './filters';
 import { FreshdeskArticle } from './types';
 import { slugify, makeUniqueSlug } from '../utils/slugify';
 import { htmlToMarkdown } from '../utils/htmlToMarkdown';
-import { ensureTitleHeading } from '../utils/ensureTitleHeading';
 import { writeFileIdempotent } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
 import { buildOutputPath } from '../utils/runName';
+import { applyMarkdownQuality, type MarkdownQualityOptions } from '../../markdown';
 import {
   createReport,
   finalizeReport,
@@ -153,17 +153,27 @@ export class FreshdeskExporter implements ExporterProvider {
               const htmlBody = articleDetail.description || articleDetail.description_text || '';
 
               // Convert HTML to Markdown
-              const markdown = htmlToMarkdown(htmlBody);
+              let markdown = htmlToMarkdown(htmlBody);
 
-              // Ensure markdown starts with H1 title (unless already present)
-              const markdownWithTitle = ensureTitleHeading(markdown, article.title);
-
-              // If body is empty, create minimal file with title
-              const finalMarkdown = markdownWithTitle.trim() || `# ${article.title}\n\n*Note: This article has no content.*`;
-
+              // If body is empty, create minimal markdown
               if (!markdown.trim()) {
+                markdown = '*Note: This article has no content.*';
                 report.logs.push(`    Warning: Article "${article.title}" (ID: ${article.id}) has no content`);
               }
+
+              // Apply markdown quality controls
+              const qualityOptions: MarkdownQualityOptions = {
+                includeTitleAsH1: options.includeTitleAsH1 || false,
+                normalizeHeadings: options.normalizeHeadings || false,
+                collapseBlankLines: options.collapseBlankLines !== false, // Default: true
+                stripEmptySections: options.stripEmptySections || false,
+              };
+
+              const { content: finalMarkdown, notes: markdownNotes } = applyMarkdownQuality(
+                markdown,
+                article.title,
+                qualityOptions
+              );
 
               // Split if needed
               const baseFileName = `${articleSlug}.md`;
@@ -193,6 +203,7 @@ export class FreshdeskExporter implements ExporterProvider {
                     sourceId: article.id.toString(),
                     error: null,
                     updatedAt: article.updated_at || null,
+                    markdownNotes: markdownNotes.length > 0 ? markdownNotes : undefined,
                     // Legacy fields
                     articleId: article.id,
                     articleTitle: article.title,
