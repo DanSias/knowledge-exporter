@@ -61,11 +61,11 @@ export function StepScope({
   fetchPreview,
 }: StepScopeProps) {
   return (
-    <Card className="flex min-h-0 flex-col">
+    <Card>
       <CardHeader>
         <CardTitle>Step 2: Select Scope</CardTitle>
       </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
+      <CardContent>
         {previewLoading && (
           <Alert variant="info">
             <div className="flex items-center gap-2">
@@ -86,9 +86,9 @@ export function StepScope({
         )}
 
         {previewData && !previewLoading && (
-          <div className="flex min-h-0 flex-1 flex-col">
-            {/* Fixed section: Export all toggle */}
-            <div className="mb-4 flex-shrink-0">
+          <div className="space-y-4">
+            {/* Export all toggle */}
+            <div>
               <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -113,11 +113,11 @@ export function StepScope({
               </div>
             </div>
 
-            {/* Conditional section: Space selection (scrollable) */}
+            {/* Space selection */}
             {!exportAll && (
-              <div className="flex min-h-0 flex-1 flex-col">
-                {/* Fixed controls */}
-                <div className="mb-3 flex-shrink-0 space-y-3">
+              <div>
+                {/* Controls */}
+                <div className="mb-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -165,8 +165,8 @@ export function StepScope({
                   />
                 </div>
 
-                {/* Scrollable space list */}
-                <div className="mb-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
+                {/* Space list with max height */}
+                <div className="mb-4 max-h-96 space-y-2 overflow-y-auto">
                   <div className="sticky top-0 grid grid-cols-[auto_1fr_auto] gap-4 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
                     <div></div>
                     <div>Space</div>
@@ -227,29 +227,25 @@ export function StepScope({
                   })}
                 </div>
 
-                {/* Fixed footer: Continue button */}
-                <div className="flex-shrink-0 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-                  <button
-                    onClick={onContinue}
-                    disabled={selectedSpaceIds.size === 0}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Continue to Options
-                  </button>
-                </div>
+                {/* Continue button */}
+                <button
+                  onClick={onContinue}
+                  disabled={selectedSpaceIds.size === 0}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Continue to Options
+                </button>
               </div>
             )}
 
             {/* Continue button when exportAll is true */}
             {exportAll && (
-              <div className="flex-shrink-0">
-                <button
-                  onClick={onContinue}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  Continue to Options
-                </button>
-              </div>
+              <button
+                onClick={onContinue}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Continue to Options
+              </button>
             )}
           </div>
         )}

@@ -5,7 +5,7 @@ export default function FreshdeskExportPage() {
   const envConfig = checkFreshdeskEnv();
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
+    <div className="bg-zinc-50 dark:bg-black">
       <div className="mx-auto max-w-5xl px-6 py-12">
         {/* Header */}
         <div className="mb-8">

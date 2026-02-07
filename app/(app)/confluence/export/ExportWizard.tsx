@@ -323,7 +323,7 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
             />
           </Tab.Panel>
 
-          <Tab.Panel className="flex h-full flex-col">
+          <Tab.Panel>
             <StepScope
               previewData={previewData}
               previewLoading={previewLoading}
