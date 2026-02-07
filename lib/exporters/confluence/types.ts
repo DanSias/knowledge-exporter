@@ -54,6 +54,7 @@ export interface PageListResponse {
   start: number;
   limit: number;
   size: number;
+  totalSize?: number; // Total count across all pages (CQL search API)
   _links?: {
     next?: string;
   };

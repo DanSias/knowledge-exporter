@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Tab } from '@headlessui/react';
 import { Alert } from '@/app/components/Alert';
 import { useExportJob } from '@/hooks/useExportJob';
@@ -26,9 +26,6 @@ interface PreviewResult {
   };
 }
 
-interface SpaceCounts {
-  [spaceKey: string]: number;
-}
 
 interface ExportWizardProps {
   hasSite: boolean;
@@ -48,9 +45,7 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  // State for space page counts
-  const [spaceCounts, setSpaceCounts] = useState<SpaceCounts>({});
-  const [countsLoading, setCountsLoading] = useState(false);
+  // Page counts removed - not needed for export scope selection
 
   // State for scope selection (Step 2)
   const [exportAll, setExportAll] = useState(true);
@@ -70,21 +65,8 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
   // Job management
   const { jobStatus, startJob, resetJob } = useExportJob('confluence');
 
-  // Fetch preview when moving to step 2
-  useEffect(() => {
-    if (currentStep === 2 && !previewData && !previewLoading && !previewError) {
-      fetchPreview();
-    }
-  }, [currentStep, previewData, previewLoading, previewError]);
-
-  // Auto-advance to results when job completes
-  useEffect(() => {
-    if ((jobStatus?.status === 'completed' || jobStatus?.status === 'failed') && currentStep === 4) {
-      setCurrentStep(5);
-    }
-  }, [jobStatus?.status, currentStep]);
-
-  const fetchPreview = async () => {
+  // Define fetchPreview (no longer fetches counts)
+  const fetchPreview = useCallback(async () => {
     setPreviewLoading(true);
     setPreviewError(null);
 
@@ -98,41 +80,27 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
 
       const data: PreviewResult = await response.json();
       setPreviewData(data);
-
-      // Fetch page counts for all spaces
-      if (data.spaces.length > 0) {
-        fetchSpaceCounts(data.spaces.map((s) => s.key));
-      }
     } catch (error) {
       console.error('Preview fetch error:', error);
       setPreviewError(error instanceof Error ? error.message : 'Unknown error occurred');
     } finally {
       setPreviewLoading(false);
     }
-  };
+  }, []);
 
-  const fetchSpaceCounts = async (spaceKeys: string[]) => {
-    setCountsLoading(true);
-
-    try {
-      const response = await fetch('/api/confluence/space-counts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spaceKeys }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch space counts');
-      }
-
-      const data = await response.json();
-      setSpaceCounts(data.counts || {});
-    } catch (error) {
-      console.error('Space counts fetch error:', error);
-    } finally {
-      setCountsLoading(false);
+  // Fetch preview when moving to step 2
+  useEffect(() => {
+    if (currentStep === 2 && !previewData && !previewLoading && !previewError) {
+      fetchPreview();
     }
-  };
+  }, [currentStep, previewData, previewLoading, previewError, fetchPreview]);
+
+  // Auto-advance to results when job completes
+  useEffect(() => {
+    if ((jobStatus?.status === 'completed' || jobStatus?.status === 'failed') && currentStep === 4) {
+      setCurrentStep(5);
+    }
+  }, [jobStatus?.status, currentStep]);
 
   const handleStartExport = async () => {
     try {
@@ -332,8 +300,6 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
               selectedSpaceIds={selectedSpaceIds}
               showPersonalSpaces={showPersonalSpaces}
               searchQuery={searchQuery}
-              spaceCounts={spaceCounts}
-              countsLoading={countsLoading}
               filteredSpaces={filteredSpaces}
               setExportAll={setExportAll}
               toggleSpace={toggleSpace}

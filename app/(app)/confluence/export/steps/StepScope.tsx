@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Alert } from '@/app/components/Alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/Card';
+import { SpacePeekModal } from '../components/SpacePeekModal';
 
 interface Space {
   id: string;
@@ -17,10 +19,6 @@ interface PreviewResult {
   };
 }
 
-interface SpaceCounts {
-  [spaceKey: string]: number;
-}
-
 interface StepScopeProps {
   previewData: PreviewResult | null;
   previewLoading: boolean;
@@ -29,8 +27,6 @@ interface StepScopeProps {
   selectedSpaceIds: Set<string>;
   showPersonalSpaces: boolean;
   searchQuery: string;
-  spaceCounts: SpaceCounts;
-  countsLoading: boolean;
   filteredSpaces: Space[];
   setExportAll: (value: boolean) => void;
   toggleSpace: (id: string) => void;
@@ -49,8 +45,6 @@ export function StepScope({
   selectedSpaceIds,
   showPersonalSpaces,
   searchQuery,
-  spaceCounts,
-  countsLoading,
   filteredSpaces,
   setExportAll,
   toggleSpace,
@@ -60,7 +54,17 @@ export function StepScope({
   onContinue,
   fetchPreview,
 }: StepScopeProps) {
+  const [peekSpace, setPeekSpace] = useState<Space | null>(null);
+
+  const handleSelectSpaceFromModal = () => {
+    if (peekSpace) {
+      toggleSpace(peekSpace.id);
+      setPeekSpace(null);
+    }
+  };
+
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Step 2: Select Scope</CardTitle>
@@ -165,14 +169,8 @@ export function StepScope({
                   />
                 </div>
 
-                {/* Space list with max height */}
+                {/* Compact space list - single line per row */}
                 <div className="mb-4 max-h-96 space-y-2 overflow-y-auto">
-                  <div className="sticky top-0 grid grid-cols-[auto_1fr_auto] gap-4 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-medium text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-                    <div></div>
-                    <div>Space</div>
-                    <div className="text-right">Pages</div>
-                  </div>
-
                   {filteredSpaces.length === 0 && (
                     <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950">
                       {searchQuery
@@ -183,48 +181,62 @@ export function StepScope({
                     </div>
                   )}
 
-                  {filteredSpaces.map((space) => {
-                    const pageCount = spaceCounts[space.key];
-                    const countDisplay = countsLoading
-                      ? '...'
-                      : pageCount !== undefined
-                      ? pageCount.toLocaleString()
-                      : '—';
-
-                    return (
-                      <div
-                        key={space.id}
-                        className={`grid grid-cols-[auto_1fr_auto] gap-4 rounded-md border border-zinc-200 px-4 py-3 transition-colors dark:border-zinc-800 ${
-                          selectedSpaceIds.has(space.id)
-                            ? 'bg-blue-50 hover:bg-zinc-100 dark:bg-blue-950/30 dark:hover:bg-zinc-800/50'
-                            : 'bg-white hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800/50'
-                        }`}
+                  {filteredSpaces.map((space) => (
+                    <div
+                      key={space.id}
+                      className={`flex items-center gap-3 rounded-md border border-zinc-200 px-4 py-2.5 transition-colors dark:border-zinc-800 ${
+                        selectedSpaceIds.has(space.id)
+                          ? 'bg-blue-50 hover:bg-zinc-100 dark:bg-blue-950/30 dark:hover:bg-zinc-800/50'
+                          : 'bg-white hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800/50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedSpaceIds.has(space.id)}
+                        onChange={() => toggleSpace(space.id)}
+                        className="h-4 w-4 flex-shrink-0 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={() => setPeekSpace(space)}
+                        className="flex-shrink-0 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                        title="Peek inside space"
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedSpaceIds.has(space.id)}
-                          onChange={() => toggleSpace(space.id)}
-                          className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                              {space.name}
-                            </span>
-                            {space.type === 'personal' && (
-                              <span className="text-xs text-zinc-400 dark:text-zinc-600">👤</span>
-                            )}
-                          </div>
-                          <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                            {space.key} • {space.type}
-                          </div>
-                        </div>
-                        <div className="text-right text-sm text-zinc-600 dark:text-zinc-400">
-                          {countDisplay} pages
-                        </div>
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                          />
+                        </svg>
+                      </button>
+                      <span
+                        onClick={() => setPeekSpace(space)}
+                        className="min-w-0 flex-1 cursor-pointer truncate font-medium text-zinc-900 hover:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-400"
+                      >
+                        {space.name}
+                      </span>
+                      <div className="flex flex-shrink-0 items-center gap-2">
+                        <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                          {space.key}
+                        </span>
+                        <span
+                          className={`rounded px-2 py-0.5 text-xs font-medium ${
+                            space.type === 'personal'
+                              ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                              : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                          }`}
+                        >
+                          {space.type}
+                        </span>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
 
                 {/* Continue button */}
@@ -251,5 +263,16 @@ export function StepScope({
         )}
       </CardContent>
     </Card>
+
+    {/* Peek Modal */}
+    {peekSpace && (
+      <SpacePeekModal
+        space={peekSpace}
+        isOpen={!!peekSpace}
+        onClose={() => setPeekSpace(null)}
+        onSelectSpace={handleSelectSpaceFromModal}
+      />
+    )}
+    </>
   );
 }

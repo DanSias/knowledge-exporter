@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Alert } from '@/app/components/Alert';
+import { PageTree, type Page } from '@/app/(app)/confluence/components/PageTree';
+import { PageViewer, type PageDetail } from '@/app/(app)/confluence/components/PageViewer';
 
 interface Space {
   id: string;
@@ -9,26 +11,6 @@ interface Space {
   name: string;
   type: string;
   status: string;
-}
-
-interface Page {
-  id: string;
-  title: string;
-  status: string;
-  parentId: string | null;
-}
-
-interface PageDetail {
-  id: string;
-  title: string;
-  status: string;
-  parentId: string | null;
-  createdAt: string | null;
-  body: string;
-}
-
-interface PageTreeNode extends Page {
-  children: PageTreeNode[];
 }
 
 export default function ConfluenceExplorePage() {
@@ -40,16 +22,13 @@ export default function ConfluenceExplorePage() {
 
   // Middle panel: Page tree
   const [pages, setPages] = useState<Page[]>([]);
-  const [pageTree, setPageTree] = useState<PageTreeNode[]>([]);
   const [loadingPages, setLoadingPages] = useState(false);
-  const [expandedPageIds, setExpandedPageIds] = useState<Set<string>>(new Set());
   const [truncatedWarning, setTruncatedWarning] = useState(false);
 
   // Right panel: Page viewer
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [pageDetail, setPageDetail] = useState<PageDetail | null>(null);
   const [loadingPageDetail, setLoadingPageDetail] = useState(false);
-  const [showRawStorage, setShowRawStorage] = useState(false);
 
   // Error handling
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +59,6 @@ export default function ConfluenceExplorePage() {
       // Deselect
       setSelectedSpaceKey(null);
       setPages([]);
-      setPageTree([]);
       setSelectedPageId(null);
       setPageDetail(null);
       setTruncatedWarning(false);
@@ -90,7 +68,6 @@ export default function ConfluenceExplorePage() {
     setSelectedSpaceKey(spaceKey);
     setLoadingPages(true);
     setPages([]);
-    setPageTree([]);
     setSelectedPageId(null);
     setPageDetail(null);
     setError(null);
@@ -105,10 +82,6 @@ export default function ConfluenceExplorePage() {
       const data = await response.json();
       setPages(data.pages || []);
       setTruncatedWarning(data.truncated || false);
-
-      // Build page tree
-      const tree = buildPageTree(data.pages || []);
-      setPageTree(tree);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load pages';
       setError(`Failed to load pages for ${spaceKey}: ${errorMessage}`);
@@ -118,45 +91,12 @@ export default function ConfluenceExplorePage() {
     }
   }
 
-  // Build hierarchical tree from flat list
-  function buildPageTree(flatPages: Page[]): PageTreeNode[] {
-    const pageMap = new Map<string, PageTreeNode>();
-    const rootPages: PageTreeNode[] = [];
-
-    // Initialize all pages with empty children arrays
-    flatPages.forEach((page) => {
-      pageMap.set(page.id, { ...page, children: [] });
-    });
-
-    // Build parent-child relationships
-    flatPages.forEach((page) => {
-      const node = pageMap.get(page.id);
-      if (!node) return;
-
-      if (page.parentId) {
-        const parent = pageMap.get(page.parentId);
-        if (parent) {
-          parent.children.push(node);
-        } else {
-          // Parent not found, treat as root
-          rootPages.push(node);
-        }
-      } else {
-        // No parent, it's a root page
-        rootPages.push(node);
-      }
-    });
-
-    return rootPages;
-  }
-
   // Fetch page detail when a page is clicked
   async function handlePageClick(pageId: string) {
     if (selectedPageId === pageId) {
       // Deselect
       setSelectedPageId(null);
       setPageDetail(null);
-      setShowRawStorage(false);
       return;
     }
 
@@ -164,7 +104,6 @@ export default function ConfluenceExplorePage() {
     setLoadingPageDetail(true);
     setPageDetail(null);
     setError(null);
-    setShowRawStorage(false);
 
     try {
       const response = await fetch(`/api/confluence/pages/${pageId}`);
@@ -181,65 +120,6 @@ export default function ConfluenceExplorePage() {
     } finally {
       setLoadingPageDetail(false);
     }
-  }
-
-  // Toggle page expansion in tree
-  function togglePageExpansion(pageId: string) {
-    setExpandedPageIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(pageId)) {
-        next.delete(pageId);
-      } else {
-        next.add(pageId);
-      }
-      return next;
-    });
-  }
-
-  // Render page tree recursively
-  function renderPageTree(nodes: PageTreeNode[], depth = 0) {
-    return nodes.map((node) => {
-      const hasChildren = node.children.length > 0;
-      const isExpanded = expandedPageIds.has(node.id);
-      const isSelected = selectedPageId === node.id;
-
-      return (
-        <div key={node.id}>
-          <div
-            className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 ${
-              isSelected ? 'bg-blue-50 dark:bg-blue-950' : ''
-            }`}
-            style={{ paddingLeft: `${depth * 16 + 12}px` }}
-          >
-            {hasChildren && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePageExpansion(node.id);
-                }}
-                className="flex-shrink-0 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-              >
-                {isExpanded ? '▼' : '▶'}
-              </button>
-            )}
-            {!hasChildren && <span className="w-4 flex-shrink-0"></span>}
-            <span
-              onClick={() => handlePageClick(node.id)}
-              className={`flex-1 truncate ${
-                isSelected
-                  ? 'font-medium text-blue-600 dark:text-blue-400'
-                  : 'text-zinc-700 dark:text-zinc-300'
-              }`}
-            >
-              {node.title}
-            </span>
-          </div>
-          {hasChildren && isExpanded && (
-            <div>{renderPageTree(node.children, depth + 1)}</div>
-          )}
-        </div>
-      );
-    });
   }
 
   // Filter spaces based on showPersonalSpaces toggle
@@ -324,10 +204,16 @@ export default function ConfluenceExplorePage() {
               </Alert>
             </div>
           )}
-          {!loadingPages && selectedSpaceKey && pageTree.length === 0 && (
+          {!loadingPages && selectedSpaceKey && pages.length === 0 && (
             <div className="px-4 py-3 text-sm text-zinc-500">No pages found</div>
           )}
-          {!loadingPages && pageTree.length > 0 && renderPageTree(pageTree)}
+          {!loadingPages && pages.length > 0 && (
+            <PageTree
+              pages={pages}
+              selectedPageId={selectedPageId}
+              onPageClick={handlePageClick}
+            />
+          )}
         </div>
       </div>
 
@@ -352,44 +238,7 @@ export default function ConfluenceExplorePage() {
         )}
 
         {!loadingPageDetail && pageDetail && (
-          <div className="p-6">
-            {/* Page Header */}
-            <div className="mb-6 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                {pageDetail.title}
-              </h1>
-              {pageDetail.createdAt && (
-                <p className="mt-2 text-sm text-zinc-500">
-                  Created: {new Date(pageDetail.createdAt).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-
-            {/* Toggle Raw Storage */}
-            <div className="mb-4 flex items-center justify-end">
-              <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                <input
-                  type="checkbox"
-                  checked={showRawStorage}
-                  onChange={(e) => setShowRawStorage(e.target.checked)}
-                  className="rounded"
-                />
-                View raw storage
-              </label>
-            </div>
-
-            {/* Page Content */}
-            {showRawStorage ? (
-              <pre className="overflow-x-auto rounded-md bg-zinc-100 p-4 text-xs text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
-                {pageDetail.body}
-              </pre>
-            ) : (
-              <div
-                className="prose prose-zinc max-w-none dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: pageDetail.body }}
-              />
-            )}
-          </div>
+          <PageViewer pageDetail={pageDetail} loading={loadingPageDetail} />
         )}
       </div>
     </div>

@@ -41,20 +41,48 @@ export async function listSpaces(): Promise<ConfluenceSpace[]> {
 
 /**
  * Get page count for a space
- * Uses REST API v1 content search with limit=0 to get total count efficiently
+ * Uses Confluence CQL search API which returns totalSize
+ *
+ * The /rest/api/content/search endpoint with CQL returns:
+ * - results: array of content
+ * - size: number of results in THIS response
+ * - totalSize: TOTAL count across all pages (what we want!)
+ * - start, limit: pagination params
+ *
+ * @throws Error if the API request fails
  */
 export async function getSpacePageCount(spaceKey: string): Promise<number> {
-  try {
-    const response = await confluenceFetch<PageListResponse>(
-      `/rest/api/content?type=page&spaceKey=${spaceKey}&limit=0`
-    );
+  // Use CQL search API which returns totalSize
+  // CQL: type=page AND space=SPACEKEY
+  const cql = `type=page AND space=${spaceKey}`;
+  const response = await confluenceFetch<{
+    results: ConfluencePage[];
+    start: number;
+    limit: number;
+    size: number;
+    totalSize: number;
+  }>(`/rest/api/content/search?cql=${encodeURIComponent(cql)}&limit=0`);
 
-    // The size property contains the total number of pages
-    return response.size || 0;
-  } catch (error) {
-    console.error(`Failed to get page count for space ${spaceKey}:`, error);
-    return 0;
+  // Log response structure in development for debugging
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[getSpacePageCount] ${spaceKey} response:`, {
+      size: response.size,
+      totalSize: response.totalSize,
+      start: response.start,
+      limit: response.limit,
+      resultsLength: response.results?.length || 0,
+    });
   }
+
+  // The 'totalSize' property contains the total count
+  const count = response.totalSize;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[getSpacePageCount] ${spaceKey} final count: ${count}`);
+  }
+
+  // Return the count (0 is valid for empty spaces)
+  return count;
 }
 
 /**

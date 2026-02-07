@@ -2,10 +2,50 @@ import { NextResponse } from 'next/server';
 import { checkConfluenceEnv } from '@/lib/env';
 import { getSpacePageCount } from '@/lib/exporters/confluence/api';
 
+// Simple in-memory cache for space counts
+// Cache key: sorted comma-separated space keys
+// Cache value: { counts, timestamp }
+const cache = new Map<string, { counts: Record<string, number | undefined>; timestamp: number }>();
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+// Periodic cache cleanup (run every 15 minutes)
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, value] of cache.entries()) {
+    if (now - value.timestamp > CACHE_TTL_MS) {
+      cache.delete(key);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    console.log(`[space-counts] Cleaned ${cleaned} expired cache entries`);
+  }
+}, 15 * 60 * 1000);
+
+/**
+ * Generate a cache key from space keys
+ */
+function getCacheKey(spaceKeys: string[]): string {
+  return [...spaceKeys].sort().join(',');
+}
+
+/**
+ * Check if cache entry is still valid
+ */
+function isCacheValid(timestamp: number): boolean {
+  return Date.now() - timestamp < CACHE_TTL_MS;
+}
+
 /**
  * POST /api/confluence/space-counts
  * Get page counts for multiple spaces
  * Body: { spaceKeys: string[] }
+ *
+ * Features:
+ * - Batched requests (5 concurrent max)
+ * - In-memory cache (10 minute TTL)
+ * - Returns undefined for failed requests (UI shows "—")
  */
 export async function POST(request: Request) {
   try {
@@ -29,9 +69,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check cache first
+    const cacheKey = getCacheKey(spaceKeys);
+    const cached = cache.get(cacheKey);
+
+    if (cached && isCacheValid(cached.timestamp)) {
+      console.log(`[space-counts] Cache hit for ${spaceKeys.length} spaces`);
+      return NextResponse.json({ counts: cached.counts });
+    }
+
+    console.log(`[space-counts] Cache miss, fetching counts for ${spaceKeys.length} spaces`);
+
     // Fetch counts in parallel with concurrency limit
     const CONCURRENCY_LIMIT = 5;
-    const counts: Record<string, number> = {};
+    const counts: Record<string, number | undefined> = {};
 
     // Process in batches
     for (let i = 0; i < spaceKeys.length; i += CONCURRENCY_LIMIT) {
@@ -40,10 +91,12 @@ export async function POST(request: Request) {
         batch.map(async (spaceKey) => {
           try {
             const count = await getSpacePageCount(spaceKey);
+            // Return the count (0 means empty space, which is valid)
             return { spaceKey, count };
           } catch (error) {
             console.error(`Failed to get count for space ${spaceKey}:`, error);
-            return { spaceKey, count: 0 };
+            // Return undefined for errors (UI will show "—")
+            return { spaceKey, count: undefined };
           }
         })
       );
@@ -53,6 +106,14 @@ export async function POST(request: Request) {
         counts[spaceKey] = count;
       });
     }
+
+    // Store in cache
+    cache.set(cacheKey, {
+      counts,
+      timestamp: Date.now(),
+    });
+
+    console.log(`[space-counts] Cached results for ${spaceKeys.length} spaces`);
 
     return NextResponse.json({ counts });
   } catch (error) {
