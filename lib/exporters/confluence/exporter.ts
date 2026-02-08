@@ -12,6 +12,7 @@ import { writeFileIdempotent } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
 import { buildOutputPath } from '../utils/runName';
 import { applyMarkdownQuality, type MarkdownQualityOptions } from '../../markdown';
+import { buildSpaceFolderMap } from './spaceFolderName';
 import {
   createReport,
   finalizeReport,
@@ -84,23 +85,27 @@ export class ConfluenceExporter implements ExporterProvider {
       // Filter spaces based on scope
       const spacesToExport = scope.exportAll
         ? allSpaces
-        : allSpaces.filter((s) => scope.spaceIds?.includes(s.id.toString()));
+        : allSpaces.filter((s) => scope.spaceKeys?.includes(s.key));
 
       report.logs.push(`Exporting ${spacesToExport.length} spaces`);
       this.reportProgress(`Exporting ${spacesToExport.length} spaces...`, report);
+
+      // Build friendly folder names for spaces (using space.name instead of space.key)
+      const spaceFolderMap = buildSpaceFolderMap(spacesToExport);
 
       // Track slugs to avoid collisions within each space
       const usedPageSlugsPerSpace = new Map<string, Set<string>>();
 
       // Process each space
       for (const space of spacesToExport) {
-        report.logs.push(`Processing space: ${space.name} (${space.key})`);
+        const spaceFolder = spaceFolderMap.get(space.key) || space.key;
+        report.logs.push(`Processing space: ${space.name} (${space.key}) → ${spaceFolder}/`);
         this.reportProgress(`Processing space: ${space.name}`, report);
 
         const pageSlugsForSpace = new Set<string>();
         usedPageSlugsPerSpace.set(space.key, pageSlugsForSpace);
 
-        const spacePath = path.join(outputDir, space.key);
+        const spacePath = path.join(outputDir, spaceFolder);
 
         try {
           // Fetch pages in this space (type=page only, no blogs)

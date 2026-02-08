@@ -64,8 +64,8 @@ export interface JobStatus {
 
 export interface ExportScope {
   exportAll: boolean;
-  categoryIds?: number[];
-  spaceIds?: string[];
+  categoryIds?: number[]; // Freshdesk
+  spaceKeys?: string[]; // Confluence
 }
 
 export interface ExportOptions {
@@ -93,7 +93,12 @@ export function useExportJob(provider: 'freshdesk' | 'confluence') {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to start export');
+      // Parse error response to show server-provided error message
+      const errorData = await response.json().catch(() => ({ error: 'Failed to start export' }));
+      const errorMessage = errorData.details
+        ? `${errorData.error}: ${errorData.details}`
+        : errorData.error || 'Failed to start export';
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();

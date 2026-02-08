@@ -24,7 +24,9 @@ export function ExportEstimate({ estimate, loading, error }: ExportEstimateProps
       <div className="rounded-md border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"></div>
-          <span>Calculating estimate...</span>
+          <span>
+            {estimate === null ? 'Loading selection...' : 'Calculating estimate...'}
+          </span>
         </div>
       </div>
     );

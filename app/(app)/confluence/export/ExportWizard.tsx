@@ -48,8 +48,9 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
   // Page counts removed - not needed for export scope selection
 
   // State for scope selection (Step 2)
+  // CANONICAL: Use space keys (not IDs) for selection
   const [exportAll, setExportAll] = useState(true);
-  const [selectedSpaceIds, setSelectedSpaceIds] = useState<Set<string>>(new Set());
+  const [selectedSpaceKeys, setSelectedSpaceKeys] = useState<string[]>([]);
   const [showPersonalSpaces, setShowPersonalSpaces] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -110,9 +111,17 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
 
   const handleStartExport = async () => {
     try {
+      // DEBUG LOGGING (dev-only)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[ExportWizard] Debug - Starting export with:', {
+          exportAll,
+          selectedSpaceKeys,
+        });
+      }
+
       const scope = {
         exportAll,
-        spaceIds: exportAll ? [] : Array.from(selectedSpaceIds),
+        spaceKeys: exportAll ? [] : selectedSpaceKeys,
       };
 
       const options = {
@@ -139,23 +148,31 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
     resetJob();
   };
 
-  const toggleSpace = (spaceId: string) => {
-    const newSet = new Set(selectedSpaceIds);
-    if (newSet.has(spaceId)) {
-      newSet.delete(spaceId);
-    } else {
-      newSet.add(spaceId);
-    }
-    setSelectedSpaceIds(newSet);
+  const toggleSpace = (spaceKey: string) => {
+    setSelectedSpaceKeys((prev) => {
+      const newKeys = prev.includes(spaceKey)
+        ? prev.filter((k) => k !== spaceKey)
+        : [...prev, spaceKey];
+
+      // DEBUG LOGGING (dev-only)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[ExportWizard] Debug - Selection changed:', {
+          exportAll,
+          selectedSpaceKeys: newKeys,
+        });
+      }
+
+      return newKeys;
+    });
   };
 
   const toggleSelectAll = () => {
     if (!filteredSpaces) return;
 
-    if (selectedSpaceIds.size === filteredSpaces.length) {
-      setSelectedSpaceIds(new Set());
+    if (selectedSpaceKeys.length === filteredSpaces.length) {
+      setSelectedSpaceKeys([]);
     } else {
-      setSelectedSpaceIds(new Set(filteredSpaces.map((s) => s.id)));
+      setSelectedSpaceKeys(filteredSpaces.map((s) => s.key));
     }
   };
 
@@ -181,7 +198,7 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
 
   // Check if a step's prerequisites are met
   const isStep1Complete = isConfigured;
-  const isStep2Complete = exportAll || selectedSpaceIds.size > 0;
+  const isStep2Complete = exportAll || selectedSpaceKeys.length > 0;
   const isStep3Complete =
     outputDir.trim() !== '' && (maxCharsPerFile === '' || parseInt(maxCharsPerFile, 10) > 0);
   const isStep4Complete = jobStatus?.status === 'completed' || jobStatus?.status === 'failed';
@@ -307,7 +324,7 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
               previewLoading={previewLoading}
               previewError={previewError}
               exportAll={exportAll}
-              selectedSpaceIds={selectedSpaceIds}
+              selectedSpaceKeys={selectedSpaceKeys}
               showPersonalSpaces={showPersonalSpaces}
               searchQuery={searchQuery}
               filteredSpaces={filteredSpaces}
@@ -348,7 +365,7 @@ export function ExportWizard({ hasSite, hasEmail, hasApiToken, siteUrl }: Export
               jobStatus={jobStatus}
               siteUrl={siteUrl}
               exportAll={exportAll}
-              selectedSpaceIds={selectedSpaceIds}
+              selectedSpaceKeys={selectedSpaceKeys}
               previewData={previewData}
               downloadAssets={downloadAssets}
               maxCharsPerFile={maxCharsPerFile}

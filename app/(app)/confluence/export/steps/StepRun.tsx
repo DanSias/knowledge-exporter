@@ -17,7 +17,7 @@ interface StepRunProps {
   jobStatus: JobStatus | null;
   siteUrl: string | null;
   exportAll: boolean;
-  selectedSpaceIds: Set<string>;
+  selectedSpaceKeys: string[];
   previewData: PreviewResult | null;
   downloadAssets: boolean;
   maxCharsPerFile: string;
@@ -30,7 +30,7 @@ export function StepRun({
   jobStatus,
   siteUrl,
   exportAll,
-  selectedSpaceIds,
+  selectedSpaceKeys,
   previewData,
   downloadAssets,
   maxCharsPerFile,
@@ -42,9 +42,33 @@ export function StepRun({
   const [estimateLoading, setEstimateLoading] = useState(false);
   const [estimateError, setEstimateError] = useState<string | null>(null);
 
+  // Deterministic selection readiness check
+  const selectionReady = exportAll || (selectedSpaceKeys !== undefined && selectedSpaceKeys.length > 0);
+  const hasValidSelection = exportAll || selectedSpaceKeys.length > 0;
+
+  // DEBUG LOGGING (dev-only)
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[StepRun] Debug - Selection state:', {
+        exportAll,
+        selectedSpaceKeys,
+        selectionReady,
+        hasValidSelection,
+      });
+    }
+  }, [exportAll, selectedSpaceKeys, selectionReady, hasValidSelection]);
+
   // Fetch estimate when scope or options change
   useEffect(() => {
     if (jobStatus) return; // Don't fetch if job is running
+
+    // Only fetch if selection is ready
+    if (!selectionReady) {
+      setEstimateLoading(true);
+      setEstimate(null);
+      setEstimateError(null);
+      return;
+    }
 
     async function fetchEstimate() {
       setEstimateLoading(true);
@@ -53,7 +77,7 @@ export function StepRun({
       try {
         const scope = {
           exportAll,
-          spaceIds: exportAll ? [] : Array.from(selectedSpaceIds),
+          spaceKeys: exportAll ? [] : selectedSpaceKeys,
         };
 
         const options = {
@@ -63,10 +87,17 @@ export function StepRun({
           maxCharsPerFile: maxCharsPerFile ? parseInt(maxCharsPerFile, 10) : undefined,
         };
 
+        const payload = { scope, options };
+
+        // DEBUG LOGGING (dev-only)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[StepRun] Debug - Sending estimate request:', payload);
+        }
+
         const response = await fetch('/api/export/confluence/estimate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scope, options }),
+          body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -74,6 +105,12 @@ export function StepRun({
         }
 
         const data = await response.json();
+
+        // DEBUG LOGGING (dev-only)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[StepRun] Debug - Estimate response:', data);
+        }
+
         setEstimate(data);
       } catch (err) {
         setEstimateError(err instanceof Error ? err.message : 'Unknown error');
@@ -85,13 +122,17 @@ export function StepRun({
     fetchEstimate();
   }, [
     exportAll,
-    selectedSpaceIds,
+    selectedSpaceKeys,
     downloadAssets,
     maxCharsPerFile,
     outputDir,
     runName,
     jobStatus,
+    selectionReady,
   ]);
+
+  // Handle "Go back to Scope" if selection is not ready after hydration
+  const showSelectionError = !selectionReady && previewData !== null;
 
   return (
     <Card>
@@ -102,62 +143,83 @@ export function StepRun({
         <div className="space-y-4">
           {!jobStatus && (
             <>
+              {/* Selection not ready error */}
+              {showSelectionError && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950">
+                  <p className="font-medium text-red-900 dark:text-red-100">Selection not ready</p>
+                  <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+                    Please go back to the Scope step and select at least one space, or enable "Export all spaces".
+                  </p>
+                </div>
+              )}
+
               {/* Confirmation Summary */}
-              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
-                <h4 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  Export Configuration
-                </h4>
-                <dl className="space-y-3">
-                  {/* Source */}
-                  <div>
-                    <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Source</dt>
-                    <dd className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
-                      Confluence • {siteUrl || 'Unknown'}
-                    </dd>
-                  </div>
+              {!showSelectionError && (
+                <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
+                  <h4 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Export Configuration
+                  </h4>
+                  <dl className="space-y-3">
+                    {/* Source */}
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Source</dt>
+                      <dd className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
+                        Confluence • {siteUrl || 'Unknown'}
+                      </dd>
+                    </div>
 
-                  {/* Scope */}
-                  <div>
-                    <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Scope</dt>
-                    <dd className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
-                      {exportAll
-                        ? `All spaces (${previewData?.totals.spaceCount || 0})`
-                        : `${selectedSpaceIds.size} selected ${
-                            selectedSpaceIds.size === 1 ? 'space' : 'spaces'
-                          }`}
-                    </dd>
-                  </div>
+                    {/* Scope */}
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Scope</dt>
+                      <dd className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
+                        {exportAll
+                          ? `All spaces (${previewData?.totals.spaceCount || 0})`
+                          : `${selectedSpaceKeys.length} selected ${
+                              selectedSpaceKeys.length === 1 ? 'space' : 'spaces'
+                            }`}
+                      </dd>
+                    </div>
 
-                  {/* Options */}
-                  <div>
-                    <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Options</dt>
-                    <dd className="mt-1 space-y-1 text-sm text-zinc-900 dark:text-zinc-100">
-                      <div>
-                        Assets: {downloadAssets ? 'Download' : 'Remote links'}
-                        {' • '}
-                        Split: {maxCharsPerFile ? `${maxCharsPerFile} chars` : 'Unlimited'}
-                      </div>
-                      <div className="text-xs text-zinc-600 dark:text-zinc-400">
-                        Output: {outputDir}
-                      </div>
-                    </dd>
-                  </div>
-                </dl>
-              </div>
+                    {/* Options */}
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Options</dt>
+                      <dd className="mt-1 space-y-1 text-sm text-zinc-900 dark:text-zinc-100">
+                        <div>
+                          Assets: {downloadAssets ? 'Download' : 'Remote links'}
+                          {' • '}
+                          Split: {maxCharsPerFile ? `${maxCharsPerFile} chars` : 'Unlimited'}
+                        </div>
+                        <div className="text-xs text-zinc-600 dark:text-zinc-400">
+                          Output: {outputDir}
+                        </div>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
 
               {/* Export Estimate */}
-              <ExportEstimate
-                estimate={estimate}
-                loading={estimateLoading}
-                error={estimateError}
-              />
+              {!showSelectionError && (
+                <ExportEstimate
+                  estimate={estimate}
+                  loading={estimateLoading}
+                  error={estimateError}
+                />
+              )}
 
+              {/* Start Export Button */}
               <button
                 onClick={onStartExport}
-                className="rounded-md bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700"
+                disabled={!hasValidSelection}
+                className="rounded-md bg-green-600 px-6 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Start Export
               </button>
+              {!hasValidSelection && (
+                <p className="mt-2 text-sm text-zinc-500">
+                  Please select at least one space or enable "Export all spaces" to continue.
+                </p>
+              )}
             </>
           )}
 

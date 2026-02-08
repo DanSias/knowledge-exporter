@@ -24,12 +24,12 @@ interface StepScopeProps {
   previewLoading: boolean;
   previewError: string | null;
   exportAll: boolean;
-  selectedSpaceIds: Set<string>;
+  selectedSpaceKeys: string[];
   showPersonalSpaces: boolean;
   searchQuery: string;
   filteredSpaces: Space[];
   setExportAll: (value: boolean) => void;
-  toggleSpace: (id: string) => void;
+  toggleSpace: (key: string) => void;
   toggleSelectAll: () => void;
   setShowPersonalSpaces: (value: boolean) => void;
   setSearchQuery: (value: string) => void;
@@ -42,7 +42,7 @@ export function StepScope({
   previewLoading,
   previewError,
   exportAll,
-  selectedSpaceIds,
+  selectedSpaceKeys,
   showPersonalSpaces,
   searchQuery,
   filteredSpaces,
@@ -58,7 +58,7 @@ export function StepScope({
 
   const handleSelectSpaceFromModal = () => {
     if (peekSpace) {
-      toggleSpace(peekSpace.id);
+      toggleSpace(peekSpace.key);
       setPeekSpace(null);
     }
   };
@@ -125,7 +125,7 @@ export function StepScope({
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        Select Spaces ({selectedSpaceIds.size} of {previewData.totals.spaceCount}{' '}
+                        Select Spaces ({selectedSpaceKeys.length} of {previewData.totals.spaceCount}{' '}
                         selected)
                       </h4>
                       {filteredSpaces.length !== previewData.totals.spaceCount && (
@@ -138,7 +138,7 @@ export function StepScope({
                       onClick={toggleSelectAll}
                       className="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400"
                     >
-                      {selectedSpaceIds.size === filteredSpaces.length
+                      {selectedSpaceKeys.length === filteredSpaces.length
                         ? 'Deselect All'
                         : 'Select All'}
                     </button>
@@ -185,15 +185,15 @@ export function StepScope({
                     <div
                       key={space.id}
                       className={`flex items-center gap-3 rounded-md border border-zinc-200 px-4 py-2.5 transition-colors dark:border-zinc-800 ${
-                        selectedSpaceIds.has(space.id)
+                        selectedSpaceKeys.includes(space.key)
                           ? 'bg-blue-50 hover:bg-zinc-100 dark:bg-blue-950/30 dark:hover:bg-zinc-800/50'
                           : 'bg-white hover:bg-zinc-100 dark:bg-zinc-900 dark:hover:bg-zinc-800/50'
                       }`}
                     >
                       <input
                         type="checkbox"
-                        checked={selectedSpaceIds.has(space.id)}
-                        onChange={() => toggleSpace(space.id)}
+                        checked={selectedSpaceKeys.includes(space.key)}
+                        onChange={() => toggleSpace(space.key)}
                         className="h-4 w-4 flex-shrink-0 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
                       />
                       <button
@@ -242,7 +242,7 @@ export function StepScope({
                 {/* Continue button */}
                 <button
                   onClick={onContinue}
-                  disabled={selectedSpaceIds.size === 0}
+                  disabled={selectedSpaceKeys.length === 0}
                   className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Continue to Options

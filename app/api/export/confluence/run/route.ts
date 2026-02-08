@@ -11,16 +11,40 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    // DEBUG LOGGING (dev-only)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[run/route] Debug - Received body:', body);
+    }
+
+    // Accept nested structure from useExportJob: { scope: {...}, options: {...} }
+    const scopeData = body.scope || body;
+    const optionsData = body.options || body;
+
     const scope: ExportScope = {
-      exportAll: body.exportAll ?? true,
-      spaceIds: body.spaceIds || [],
+      exportAll: scopeData.exportAll ?? false, // NEVER default to true
+      spaceKeys: scopeData.spaceKeys || [],
     };
 
+    // Server-side validation guard: prevent accidental export-all
+    if (!scope.exportAll && (!scope.spaceKeys || scope.spaceKeys.length === 0)) {
+      return NextResponse.json(
+        {
+          error: 'Invalid export scope',
+          details: 'Must enable exportAll or provide at least one spaceKey'
+        },
+        { status: 400 }
+      );
+    }
+
     const options: ExportOptions = {
-      outputDir: body.outputDir || './exports', // Base directory (exporter adds provider/runName)
-      runName: body.runName, // Optional run name (auto-generated if not provided)
-      downloadAssets: body.downloadAssets ?? false,
-      maxCharsPerFile: body.maxCharsPerFile ? parseInt(body.maxCharsPerFile, 10) : undefined,
+      outputDir: optionsData.outputDir || './exports', // Base directory (exporter adds provider/runName)
+      runName: optionsData.runName, // Optional run name (auto-generated if not provided)
+      downloadAssets: optionsData.downloadAssets ?? false,
+      maxCharsPerFile: optionsData.maxCharsPerFile ? parseInt(optionsData.maxCharsPerFile, 10) : undefined,
+      includeTitleAsH1: optionsData.includeTitleAsH1,
+      normalizeHeadings: optionsData.normalizeHeadings,
+      collapseBlankLines: optionsData.collapseBlankLines,
+      stripEmptySections: optionsData.stripEmptySections,
     };
 
     // Clean up old jobs

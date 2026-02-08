@@ -22,6 +22,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { scope, options } = body;
 
+    // DEBUG LOGGING (dev-only)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[estimate/route] Debug - Received request:', { scope, options });
+    }
+
     if (!scope) {
       return NextResponse.json({ error: 'Missing scope parameter' }, { status: 400 });
     }
@@ -32,6 +37,11 @@ export async function POST(request: Request) {
 
     // Get estimate
     const estimate = await estimateConfluenceExport(exportScope, exportOptions);
+
+    // DEBUG LOGGING (dev-only)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[estimate/route] Debug - Returning estimate:', estimate);
+    }
 
     return NextResponse.json(estimate);
   } catch (error) {

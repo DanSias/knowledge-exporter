@@ -1,9 +1,9 @@
 /**
  * Confluence export estimate logic
- * Lightweight estimate without fetching full page bodies
+ * Fetches page counts for selected spaces to provide accurate estimates
  */
 
-import { listSpaces } from './api';
+import { listSpaces, listPagesInSpace } from './api';
 import { ExportScope, ExportOptions } from '../types';
 
 export interface ExportEstimate {
@@ -29,10 +29,22 @@ export async function estimateConfluenceExport(
     // Fetch all spaces
     const allSpaces = await listSpaces();
 
+    // DEBUG LOGGING (dev-only)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[estimateConfluenceExport] Debug - All spaces:', allSpaces.map(s => ({ id: s.id, idType: typeof s.id, key: s.key })));
+      console.log('[estimateConfluenceExport] Debug - Scope:', scope);
+      console.log('[estimateConfluenceExport] Debug - Scope.spaceKeys:', scope.spaceKeys);
+    }
+
     // Filter spaces based on scope
     const spacesToExport = scope.exportAll
       ? allSpaces
-      : allSpaces.filter((s) => scope.spaceIds?.includes(s.id.toString()));
+      : allSpaces.filter((s) => scope.spaceKeys?.includes(s.key));
+
+    // DEBUG LOGGING (dev-only)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[estimateConfluenceExport] Debug - Filtered spaces:', spacesToExport.map(s => ({ id: s.id, key: s.key, name: s.name })));
+    }
 
     if (spacesToExport.length === 0) {
       return {
@@ -53,29 +65,48 @@ export async function estimateConfluenceExport(
     // Count personal spaces
     const personalSpaceCount = spacesToExport.filter((s) => s.type === 'personal').length;
 
-    // Estimated files
+    // Estimated files and warnings
     let estimatedFiles: number | null = null;
+    let anyTruncated = false;
 
     if (scope.exportAll) {
-      // Export all: Cannot reliably estimate
+      // Export all: Cannot reliably estimate without fetching all pages
       estimatedFiles = null;
       notes.push('Exact file count will be determined during export');
-    } else if (spacesToExport.length <= 5) {
-      // Small selection: Can provide rough estimate
-      // Note: We avoid fetching pages to keep this lightweight
-      // Instead, provide a conservative estimate
-      estimatedFiles = null; // Still avoid false precision
-      notes.push(
-        'Estimated files will depend on page count per space (fetched during export)'
-      );
-    } else {
-      // Large selection: Cannot reliably estimate
-      estimatedFiles = null;
-      notes.push('File count will be determined during export');
-    }
+      warnings.push('Some spaces may be truncated at 500 pages per space');
+    } else if (spacesToExport.length <= 10) {
+      // Small selection: Fetch actual page counts
+      try {
+        let totalPages = 0;
+        const MAX_PAGES_PER_SPACE = 500;
 
-    // Warnings
-    warnings.push('Some spaces may be truncated at 500 pages per space');
+        for (const space of spacesToExport) {
+          const pages = await listPagesInSpace(space.key);
+          totalPages += pages.length;
+
+          // Check if this space was truncated
+          if (pages.length >= MAX_PAGES_PER_SPACE) {
+            anyTruncated = true;
+          }
+        }
+
+        estimatedFiles = totalPages;
+
+        // Only warn about truncation if a space actually hit the limit
+        if (anyTruncated) {
+          warnings.push('One or more spaces truncated at 500 pages per space');
+        }
+      } catch (error) {
+        // If fetching fails, fall back to null
+        estimatedFiles = null;
+        notes.push('Could not fetch page counts; count will be determined during export');
+      }
+    } else {
+      // Large selection: Too many spaces to fetch counts efficiently
+      estimatedFiles = null;
+      notes.push('File count will be determined during export (too many spaces to estimate)');
+      warnings.push('Some spaces may be truncated at 500 pages per space');
+    }
 
     if (personalSpaceCount > 0) {
       notes.push(
