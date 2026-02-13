@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/Card';
 import { Alert } from '@/app/components/Alert';
 import { ExportEstimate, type ExportEstimateData } from '@/app/components/export/ExportEstimate';
+import { ProgressBanner } from '@/app/components/export/ProgressBanner';
+import { StatsCards } from '@/app/components/export/StatsCards';
 import { JobStatus } from '@/hooks/useExportJob';
 import { PreviewResult } from '@/lib/exporters/types';
 
@@ -95,6 +97,9 @@ export function StepRun({
     jobStatus,
   ]);
 
+  const isRunning = jobStatus?.status === 'running';
+  const isFailed = jobStatus?.status === 'failed';
+
   return (
     <Card>
       <CardHeader>
@@ -102,6 +107,7 @@ export function StepRun({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Pre-run: Configuration summary + estimate + start button */}
           {!jobStatus && (
             <>
               {/* Confirmation Summary */}
@@ -110,7 +116,6 @@ export function StepRun({
                   Export Configuration
                 </h4>
                 <dl className="space-y-3">
-                  {/* Source */}
                   <div>
                     <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Source</dt>
                     <dd className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
@@ -118,7 +123,6 @@ export function StepRun({
                     </dd>
                   </div>
 
-                  {/* Scope */}
                   <div>
                     <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Scope</dt>
                     <dd className="mt-1 text-sm text-zinc-900 dark:text-zinc-100">
@@ -138,7 +142,6 @@ export function StepRun({
                     </dd>
                   </div>
 
-                  {/* Options */}
                   <div>
                     <dt className="text-xs font-medium text-zinc-500 dark:text-zinc-500">Options</dt>
                     <dd className="mt-1 space-y-1 text-sm text-zinc-900 dark:text-zinc-100">
@@ -157,7 +160,6 @@ export function StepRun({
                 </dl>
               </div>
 
-              {/* Export Estimate */}
               <ExportEstimate
                 estimate={estimate}
                 loading={estimateLoading}
@@ -173,37 +175,29 @@ export function StepRun({
             </>
           )}
 
+          {/* Running state: live progress */}
           {jobStatus && (
             <>
-              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`h-3 w-3 rounded-full ${
-                      jobStatus.status === 'running'
-                        ? 'animate-pulse bg-blue-500'
-                        : jobStatus.status === 'completed'
-                        ? 'bg-green-500'
-                        : jobStatus.status === 'failed'
-                        ? 'bg-red-500'
-                        : 'bg-zinc-400'
-                    }`}
-                  ></div>
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                    Status: {jobStatus.status.charAt(0).toUpperCase() + jobStatus.status.slice(1)}
-                  </span>
-                </div>
-              </div>
+              {isRunning && (
+                <ProgressBanner message="Export in progress..." />
+              )}
 
-              {jobStatus.status === 'running' && jobStatus.progress && (
+              {isRunning && jobStatus.progress && (
                 <div>
-                  <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Progress
+                  <h4 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Live Progress
                   </h4>
-                  <div className="space-y-2 rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+                  <StatsCards
+                    filesCreated={jobStatus.progress.filesCreated || 0}
+                    filesUpdated={jobStatus.progress.filesUpdated || 0}
+                    filesSkipped={jobStatus.progress.filesSkipped || 0}
+                    filesFailed={jobStatus.progress.filesFailed}
+                  />
+                  <div className="mt-4 space-y-2 rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
                     <div className="flex justify-between text-sm">
-                      <span className="text-zinc-600 dark:text-zinc-400">Categories</span>
+                      <span className="text-zinc-600 dark:text-zinc-400">Articles processed</span>
                       <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {jobStatus.progress.categoriesProcessed}
+                        {jobStatus.progress.articlesProcessed}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
@@ -213,29 +207,16 @@ export function StepRun({
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-zinc-600 dark:text-zinc-400">Articles</span>
+                      <span className="text-zinc-600 dark:text-zinc-400">Categories</span>
                       <span className="font-medium text-zinc-900 dark:text-zinc-100">
-                        {jobStatus.progress.articlesProcessed}
+                        {jobStatus.progress.categoriesProcessed}
                       </span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {jobStatus.logs && jobStatus.logs.length > 0 && (
-                <div>
-                  <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    Recent Logs
-                  </h4>
-                  <div className="rounded-md border border-zinc-200 bg-zinc-950 px-4 py-3 font-mono text-xs text-green-400">
-                    {jobStatus.logs.map((log, i) => (
-                      <div key={i}>{log}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {jobStatus.error && (
+              {isFailed && (
                 <Alert variant="error">
                   <p className="font-medium">Export failed</p>
                   <p className="mt-1 text-sm">{jobStatus.error}</p>

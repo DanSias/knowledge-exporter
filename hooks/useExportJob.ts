@@ -21,6 +21,7 @@ export interface JobStatus {
     filesCreated?: number;
     filesUpdated?: number;
     filesSkipped?: number;
+    filesFailed?: number;
   };
   logs?: string[];
 

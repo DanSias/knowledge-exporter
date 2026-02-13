@@ -6,6 +6,15 @@ import fs from 'fs/promises';
 import path from 'path';
 import { hashContent } from './hashing';
 
+// Dev-only: log first N file decisions per export run
+let _debugFileCount = 0;
+const DEBUG_SAMPLE_LIMIT = 5;
+
+/** Call at the start of each export run to reset debug sampling */
+export function resetDebugFileCounter(): void {
+  _debugFileCount = 0;
+}
+
 export interface WriteResult {
   status: 'created' | 'updated' | 'skipped';
   path: string;
@@ -57,24 +66,39 @@ export async function writeFileIdempotent(
   const bytes = Buffer.byteLength(content, 'utf8');
 
   // If file exists, check if content changed
+  let status: 'created' | 'updated' | 'skipped';
   if (existingContent !== null) {
     const existingHash = hashContent(existingContent);
-
     if (existingHash === newHash) {
-      return {
-        status: 'skipped',
-        path: filePath,
-        bytes,
-        hash: newHash,
-      };
+      status = 'skipped';
+    } else {
+      status = 'updated';
     }
+  } else {
+    status = 'created';
+  }
+
+  // DEBUG LOGGING (dev-only): first 5 files per run
+  if (process.env.NODE_ENV !== 'production' && _debugFileCount < DEBUG_SAMPLE_LIMIT) {
+    _debugFileCount++;
+    const existingHash = existingContent !== null ? hashContent(existingContent) : null;
+    console.log(`[fileWriter] #${_debugFileCount} ${path.basename(filePath)}`);
+    console.log(`  path: ${filePath}`);
+    console.log(`  exists: ${existingContent !== null}`);
+    console.log(`  prevHash: ${existingHash ?? 'n/a'}`);
+    console.log(`  newHash:  ${newHash}`);
+    console.log(`  status:   ${status}`);
+  }
+
+  if (status === 'skipped') {
+    return { status, path: filePath, bytes, hash: newHash };
   }
 
   // Write file (create or update)
   await fs.writeFile(filePath, content, 'utf8');
 
   return {
-    status: existingContent === null ? 'created' : 'updated',
+    status,
     path: filePath,
     bytes,
     hash: newHash,

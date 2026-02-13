@@ -14,6 +14,11 @@ export interface JobProgress {
   totalCategories?: number;
   totalFolders?: number;
   totalArticles?: number;
+  // File operation counts (updated incrementally during export)
+  filesCreated: number;
+  filesUpdated: number;
+  filesSkipped: number;
+  filesFailed: number;
 }
 
 export interface Job {
@@ -49,6 +54,10 @@ export function createJob(): Job {
       categoriesProcessed: 0,
       foldersProcessed: 0,
       articlesProcessed: 0,
+      filesCreated: 0,
+      filesUpdated: 0,
+      filesSkipped: 0,
+      filesFailed: 0,
     },
     logs: [],
     createdAt: new Date(),

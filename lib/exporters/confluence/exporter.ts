@@ -8,7 +8,7 @@ import { listSpaces, listPagesInSpace, getPage } from './api';
 import { ConfluenceSpace, ConfluencePage, ConfluencePageWithBody } from './types';
 import { slugify, makeUniqueSlug } from '../utils/slugify';
 import { htmlToMarkdown } from '../utils/htmlToMarkdown';
-import { writeFileIdempotent } from '../utils/fileWriter';
+import { writeFileIdempotent, resetDebugFileCounter } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
 import { buildOutputPath } from '../utils/runName';
 import { applyMarkdownQuality, type MarkdownQualityOptions } from '../../markdown';
@@ -68,8 +68,11 @@ export class ConfluenceExporter implements ExporterProvider {
   async run(scope: ExportScope, options: ExportOptions): Promise<ExportReport> {
     const startTimestamp = Date.now();
 
-    // Build the full output path with run name
-    const outputDir = buildOutputPath('./exports', 'confluence', options.runName);
+    // Reset debug file counter for this run
+    resetDebugFileCounter();
+
+    // Build the full output path with run name, honoring the user-chosen base dir
+    const outputDir = buildOutputPath(options.outputDir || './exports', 'confluence', options.runName);
 
     const report = createReport(outputDir, 'confluence', options.runName || null, {
       downloadAssets: options.downloadAssets,

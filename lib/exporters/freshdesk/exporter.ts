@@ -10,7 +10,7 @@ import { isPublished, isEnglish } from './filters';
 import { FreshdeskArticle } from './types';
 import { slugify, makeUniqueSlug } from '../utils/slugify';
 import { htmlToMarkdown } from '../utils/htmlToMarkdown';
-import { writeFileIdempotent } from '../utils/fileWriter';
+import { writeFileIdempotent, resetDebugFileCounter } from '../utils/fileWriter';
 import { splitMarkdown } from '../utils/splitMarkdown';
 import { buildOutputPath } from '../utils/runName';
 import { applyMarkdownQuality, type MarkdownQualityOptions } from '../../markdown';
@@ -30,11 +30,44 @@ interface FreshdeskArticleDetail extends FreshdeskArticle {
   description_text?: string;
 }
 
+export interface FreshdeskProgressCallback {
+  (progress: {
+    categoriesProcessed: number;
+    foldersProcessed: number;
+    articlesProcessed: number;
+    filesCreated: number;
+    filesUpdated: number;
+    filesSkipped: number;
+    filesFailed: number;
+  }): void;
+}
+
 export class FreshdeskExporter implements ExporterProvider {
   key = 'freshdesk';
+  private progressCallback?: FreshdeskProgressCallback;
 
   async preview(): Promise<import('../types').PreviewResult> {
     throw new Error('Use preview route handler instead');
+  }
+
+  setProgressCallback(callback: FreshdeskProgressCallback): void {
+    this.progressCallback = callback;
+  }
+
+  /**
+   * Report incremental progress to callback (if set)
+   */
+  private reportProgress(report: ExportReport): void {
+    if (!this.progressCallback) return;
+    this.progressCallback({
+      categoriesProcessed: report.counts.categoriesProcessed || 0,
+      foldersProcessed: report.counts.foldersProcessed || 0,
+      articlesProcessed: report.counts.articlesProcessed || 0,
+      filesCreated: report.counts.filesCreated || 0,
+      filesUpdated: report.counts.filesUpdated || 0,
+      filesSkipped: report.counts.filesSkipped || 0,
+      filesFailed: report.counts.filesFailed || 0,
+    });
   }
 
   /**
@@ -43,8 +76,11 @@ export class FreshdeskExporter implements ExporterProvider {
   async run(scope: ExportScope, options: ExportOptions): Promise<ExportReport> {
     const startTimestamp = Date.now();
 
-    // Build the full output path with run name
-    const outputDir = buildOutputPath('./exports', 'freshdesk', options.runName);
+    // Reset debug file counter for this run
+    resetDebugFileCounter();
+
+    // Build the full output path with run name, honoring the user-chosen base dir
+    const outputDir = buildOutputPath(options.outputDir || './exports', 'freshdesk', options.runName);
 
     const report = createReport(outputDir, 'freshdesk', options.runName || null, {
       downloadAssets: options.downloadAssets,
@@ -218,6 +254,7 @@ export class FreshdeskExporter implements ExporterProvider {
                   } else if (result.status === 'skipped') {
                     report.counts.filesSkipped++;
                   }
+                  this.reportProgress(report);
                 } catch (error) {
                   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                   const fileResult: FileResult = {
@@ -240,10 +277,12 @@ export class FreshdeskExporter implements ExporterProvider {
                   report.files.push(fileResult);
                   report.counts.filesFailed++;
                   report.logs.push(`    Error writing file: ${errorMessage}`);
+                  this.reportProgress(report);
                 }
               }
 
               report.counts.articlesProcessed = (report.counts.articlesProcessed || 0) + 1;
+              this.reportProgress(report);
             } catch (error) {
               // Article processing failed
               const filePath = path.join(folderPath, `${slugify(article.title)}.md`);
@@ -270,6 +309,7 @@ export class FreshdeskExporter implements ExporterProvider {
               report.files.push(fileResult);
               report.counts.filesFailed = (report.counts.filesFailed || 0) + 1;
               report.logs.push(`    Error processing article "${article.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+              this.reportProgress(report);
             }
           }
 
@@ -279,6 +319,7 @@ export class FreshdeskExporter implements ExporterProvider {
         }
 
         report.counts.categoriesProcessed = (report.counts.categoriesProcessed || 0) + 1;
+        this.reportProgress(report);
       }
 
       report.logs.push(`Export complete: ${report.counts.articlesProcessed} articles processed`);

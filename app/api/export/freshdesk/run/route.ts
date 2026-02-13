@@ -66,18 +66,25 @@ async function runExportJob(
 
     const exporter = new FreshdeskExporter();
 
-    // Note: For now, we'll run synchronously
-    // In production, this would use a proper job queue
+    // Wire up incremental progress callback (same pattern as Confluence)
+    exporter.setProgressCallback((progress) => {
+      updateJobProgress(jobId, progress);
+    });
+
     const report = await exporter.run(scope, options);
 
-    // Update job with results
-    setJobReport(jobId, report);
+    // Final progress update with complete counts from report
     updateJobProgress(jobId, {
       categoriesProcessed: report.counts.categoriesProcessed,
       foldersProcessed: report.counts.foldersProcessed,
-      articlesProcessed: report.counts.articlesProcessed,
+      articlesProcessed: report.counts.articlesProcessed || 0,
+      filesCreated: report.counts.filesCreated,
+      filesUpdated: report.counts.filesUpdated,
+      filesSkipped: report.counts.filesSkipped,
+      filesFailed: report.counts.filesFailed || 0,
     });
 
+    setJobReport(jobId, report);
     addJobLog(jobId, `Export completed: ${report.counts.articlesProcessed} articles processed`);
     updateJobStatus(jobId, 'completed');
   } catch (error) {
